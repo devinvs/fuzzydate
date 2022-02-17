@@ -2,9 +2,11 @@
 name = "fuzzydate"
 version = "0.1.0"
 edition = "2021"
+authors = ["Devin Vander Stelt"]
+keywords = ["date", "parse", "fuzzy", "match", "time", "string"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 chrono = "0.4"
-lazy_static = "*"
+lazy_static = "1.4"

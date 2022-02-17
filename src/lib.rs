@@ -194,7 +194,3 @@ pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
 
     Ok(tree.unwrap().0.to_chrono())
 }
-
-#[cfg(test)]
-mod test {
-}
