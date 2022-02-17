@@ -16,7 +16,7 @@ A flexible date parser library for Rust.
 
 ## Usage
 
-Put this in your `Cargo.tom`:
+Put this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
