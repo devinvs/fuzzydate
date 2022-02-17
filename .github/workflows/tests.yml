@@ -10,18 +10,24 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  check:
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run cargo-tarpaulin
-      uses: actions-rs/tarpaulin@v0.1.0
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: action-rs/cargo@v1
+      with:
+        command: check
+    - uses: actions-rs/tarpaulin@v0.1
+      with:
+        version: '0.15.0'
+        args: '-- --test-threads 1'
     - name: Archive code coverage results
       uses: actions/upload-artifact@v1
       with:
