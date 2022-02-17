@@ -181,7 +181,7 @@
 mod lexer;
 mod ast;
 
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Datelike};
 
 /// Parse an input string into a chrono NaiveDateTime
 pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
@@ -193,4 +193,28 @@ pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
     }
 
     Ok(tree.unwrap().0.to_chrono())
+}
+
+#[test]
+fn test_parse() {
+    let input = "2/12/2022";
+    let date = parse(input).unwrap();
+
+    assert_eq!(2, date.month());
+    assert_eq!(12, date.day());
+    assert_eq!(2022, date.year());
+}
+
+#[test]
+fn test_malformed() {
+    let input = "Hello World";
+    let date = parse(input);
+    assert!(date.is_err());
+}
+
+#[test]
+fn test_empty() {
+    let input = "";
+    let date = parse(input);
+    assert!(date.is_err());
 }

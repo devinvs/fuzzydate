@@ -278,7 +278,7 @@ fn test_simple_date() {
 
 #[test]
 fn test_complex_relative_date_time() {
-    let input = "fifty-five days from january 1, 2010".to_string();
+    let input = "fifty-five days from january 1, 2010 5:00".to_string();
     assert_eq!(Ok(vec![
         Lexeme::Fifty,
         Lexeme::Dash,
@@ -288,6 +288,15 @@ fn test_complex_relative_date_time() {
         Lexeme::January,
         Lexeme::Num(1),
         Lexeme::Comma,
-        Lexeme::Num(2010)
+        Lexeme::Num(2010),
+        Lexeme::Num(5),
+        Lexeme::Colon,
+        Lexeme::Num(0)
     ]), Lexeme::lex_line(input));
+}
+
+#[test]
+fn test_unknown_token() {
+    let input = "Hello World".to_string();
+    assert!(Lexeme::lex_line(input).is_err());
 }

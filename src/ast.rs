@@ -924,3 +924,9 @@ fn test_complex_relative_datetime() {
     assert_eq!(date.month(), today.month());
     assert_eq!(date.day(), today.day() + 7 - 2 + 1 + 1);
 }
+
+#[test]
+fn test_malformed_after() {
+    let lexemes = vec![Lexeme::Num(5), Lexeme::Day, Lexeme::After, Lexeme::Colon];
+    assert!(DateTime::parse(lexemes.as_slice()).is_err());
+}
