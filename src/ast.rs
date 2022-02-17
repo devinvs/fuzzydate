@@ -58,7 +58,7 @@ impl DateTime {
                     let (datetime, t) = datetime.unwrap();
                     tokens += t;
 
-                    Ok(Some((Self::After(Duration { unit, num: 1 }, Box::new(datetime)), tokens)))
+                    Ok(Some((Self::Before(Duration { unit, num: 1 }, Box::new(datetime)), tokens)))
                 } else if Some(&Lexeme::Ago) == l.get(tokens) {
                     tokens += 1;
                     Ok(Some((Self::Ago(Duration{unit, num: 1}), tokens)))
@@ -103,6 +103,7 @@ impl DateTime {
 
                 Ok(Some((Self::Before(dur, Box::new(datetime)), tokens)))
             } else if Some(&Lexeme::Ago) == l.get(tokens) {
+                tokens += 1;
                 Ok(Some((Self::Ago(dur), tokens)))
             } else {
                 Err("Expected 'after' or 'before'".into())
@@ -142,7 +143,7 @@ impl DateTime {
                         Unit::Month => {
                             if date.month() == 12 {
                                 date = date.with_month(1).unwrap();
-                                date.with_year(date.year() + dur.num as i32).unwrap()
+                                date.with_year(date.year() + 1).unwrap()
                             } else {
                                 date.with_month(date.month()+dur.num).unwrap()
                             }
@@ -162,9 +163,9 @@ impl DateTime {
                 } else {
                     match dur.unit {
                         Unit::Month => {
-                            if date.month() == 12 {
-                                date = date.with_month(1).unwrap();
-                                date.with_year(date.year() - dur.num as i32).unwrap()
+                            if date.month() == 1 {
+                                date = date.with_month(12).unwrap();
+                                date.with_year(date.year() - 1 as i32).unwrap()
                             } else {
                                 date.with_month(date.month()-dur.num).unwrap()
                             }
@@ -184,9 +185,9 @@ impl DateTime {
                 } else {
                     match dur.unit {
                         Unit::Month => {
-                            if date.month() == 12 {
-                                date = date.with_month(1).unwrap();
-                                date.with_year(date.year() - dur.num as i32).unwrap()
+                            if date.month() == 1 {
+                                date = date.with_month(12).unwrap();
+                                date.with_year(date.year() - 1 as i32).unwrap()
                             } else {
                                 date.with_month(date.month()-dur.num).unwrap()
                             }
@@ -926,7 +927,66 @@ fn test_complex_relative_datetime() {
 }
 
 #[test]
+fn test_datetime_now() {
+    let lexemes = vec![Lexeme::Now];
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
+    let date = date.to_chrono();
+
+    let now = Local::now().naive_local();
+    assert_eq!(t, 1);
+    assert_eq!(date.year(), now.year());
+    assert_eq!(date.month(), now.month());
+    assert_eq!(date.day(), now.day());
+    assert_eq!(date.hour(), now.hour());
+    assert_eq!(date.minute(), now.minute());
+}
+
+#[test]
+fn test_malformed_article_after() {
+    let lexemes = vec![Lexeme::A, Lexeme::Day, Lexeme::After, Lexeme::Colon];
+    assert!(DateTime::parse(lexemes.as_slice()).is_err());
+}
+
+#[test]
 fn test_malformed_after() {
     let lexemes = vec![Lexeme::Num(5), Lexeme::Day, Lexeme::After, Lexeme::Colon];
     assert!(DateTime::parse(lexemes.as_slice()).is_err());
+}
+
+#[test]
+fn test_datetime_ago() {
+    let lexemes = vec![Lexeme::One, Lexeme::Day, Lexeme::Ago];
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
+    let date = date.to_chrono();
+
+    let today = Local::now().naive_local().date();
+    assert_eq!(t, 3);
+    assert_eq!(date.year(), today.year());
+    assert_eq!(date.month(), today.month());
+    assert_eq!(date.day(), today.day() -1);
+}
+
+#[test]
+fn test_teens() {
+    assert_eq!((10, 1), Teens::parse(&[Lexeme::Ten]).unwrap());
+    assert_eq!((11, 1), Teens::parse(&[Lexeme::Eleven]).unwrap());
+    assert_eq!((12, 1), Teens::parse(&[Lexeme::Twelve]).unwrap());
+    assert_eq!((13, 1), Teens::parse(&[Lexeme::Thirteen]).unwrap());
+    assert_eq!((14, 1), Teens::parse(&[Lexeme::Fourteen]).unwrap());
+    assert_eq!((15, 1), Teens::parse(&[Lexeme::Fifteen]).unwrap());
+    assert_eq!((16, 1), Teens::parse(&[Lexeme::Sixteen]).unwrap());
+    assert_eq!((17, 1), Teens::parse(&[Lexeme::Seventeen]).unwrap());
+    assert_eq!((18, 1), Teens::parse(&[Lexeme::Eighteen]).unwrap());
+    assert_eq!((19, 1), Teens::parse(&[Lexeme::Nineteen]).unwrap());
+}
+
+#[test]
+fn test_article_before() {
+    let (date, t) = DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap().unwrap();
+    let date = date.to_chrono();
+    let today = Local::now().naive_local().date();
+    assert_eq!(t, 4);
+    assert_eq!(date.year(), today.year());
+    assert_eq!(date.month(), today.month());
+    assert_eq!(date.day(), today.day()-1);
 }
