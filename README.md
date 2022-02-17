@@ -5,8 +5,8 @@
 [![FuzzyDate on crates.io][cratesio-image]][cratesio]
 [![FuzzyDate on docs.rs][docsrs-image]][docsrs]
 
-[gh-image]: https://github.com/DevinVS/FuzzyDate/actions/workflows/tests.yml/badge.svg
-[gh-checks]: https://github.com/DevinVS/FuzzyDate/actions?query=workflow%3Atests
+[gh-image]: https://github.com/DevinVS/fuzzydate/actions/workflows/tests.yml/badge.svg
+[gh-checks]: https://github.com/DevinVS/fuzzydate/actions/workflows/tests.yml
 [cratesio-image]: https://img.shields.io/crates/v/fuzzydate.svg
 [cratesio]: https://crates.io/crates/fuzzydate
 [docsrs-image]: https://docs.rs/fuzzydate/badge.svg
