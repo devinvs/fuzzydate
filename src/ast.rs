@@ -11,15 +11,22 @@ use chrono::{
 use crate::lexer::Lexeme;
 
 #[derive(Debug, Eq, PartialEq)]
+/// Root of the Abstract Syntax Tree, represents a fully parsed DateTime
 pub enum DateTime {
+    /// Standard date and time
     DateTime(Date, Time),
+    /// A duration after a datetime
     After(Duration, Box<DateTime>),
+    /// A duration before a datetime
     Before(Duration, Box<DateTime>),
+    /// A duration before the current datetime
     Ago(Duration),
+    /// The current datetime
     Now
 }
 
 impl DateTime {
+    /// Parse a datetime from a slice of lexemes
     pub fn parse(l: &[Lexeme]) -> Result<Option<(Self, usize)>, String> {
         let mut tokens = 0;
 
@@ -115,6 +122,7 @@ impl DateTime {
         }
     }
 
+    /// Convert a parsed DateTime to chrono's NaiveDateTime
     pub fn to_chrono(&self) -> ChronoDateTime {
         match self {
             DateTime::Now => Local::now().naive_local(),
@@ -195,6 +203,7 @@ impl DateTime {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+/// A Parsed Date
 pub enum Date {
     MonthNumDayYear(u32, u32, u32),
     MonthDayYear(Month, u32, u32),

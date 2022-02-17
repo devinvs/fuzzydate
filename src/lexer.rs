@@ -106,6 +106,7 @@ lazy_static! {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+/// Enum for all valid tokens in the parse string
 pub enum Lexeme {
     A,
     An,
@@ -191,12 +192,20 @@ pub enum Lexeme {
 }
 
 impl Lexeme {
+    /// Lex a string into a list of Lexemes
     pub fn lex_line(s: String) -> Result<Vec<Lexeme>, String> {
+
+        // Convert s to lowercase to remove case sensitive behaviour
         let s = s.to_lowercase();
-        let mut lexemes = Vec::new();
-        let mut chars = s.chars();
+
+        let mut lexemes = Vec::new();   // List of Lexemes
+        let mut chars = s.chars();      // Character iterator
         let mut stack = String::with_capacity(10);
 
+        // Convenience closure which takes a reference to our stack
+        // and our lexemes, searches our keyword map for the stack,
+        // tries to convert the stack into a integer, adds the appropriate
+        // lexemes if successfully, and zeroes out the stack
         let push_lexeme = |stack: &mut String, ls: &mut Vec<Lexeme>| -> Result<(), String> {
             if stack.is_empty() {
                 Ok(())
@@ -209,37 +218,46 @@ impl Lexeme {
                 *stack = String::with_capacity(10);
                 Ok(())
             } else {
-                Err("".into())
+                Err(format!("Unexpected Token: {}", stack))
             }
         };
 
+        // While we have characters left in the string
         while let Some(c) = chars.next() {
+            // Whitespace always separates lexemes, push whatever we have
+            // on the stack and continue to the next character
             if c.is_whitespace() {
                 push_lexeme(&mut stack, &mut lexemes)?;
                 continue;
             }
 
             match c {
+                // Comma separates lexemes, push stack and add comma
                 ',' => {
                     push_lexeme(&mut stack, &mut lexemes)?;
                     lexemes.push(Lexeme::Comma);
                 }
+                // Colon separates lexemes, push stack and add colon
                 ':' => {
                     push_lexeme(&mut stack, &mut lexemes)?;
                     lexemes.push(Lexeme::Colon);
                 }
+                // Slash separates lexemes, push stack and add slash
                 '/' => {
                     push_lexeme(&mut stack, &mut lexemes)?;
                     lexemes.push(Lexeme::Slash);
                 }
+                // Dash separates lexemes, push stack and add dash
                 '-' => {
                     push_lexeme(&mut stack, &mut lexemes)?;
                     lexemes.push(Lexeme::Dash);
                 }
+                // Else just add the character to our stack
                 _ => stack.push(c)
             }
         }
 
+        // If any characters remaining on our stack, push them
         push_lexeme(&mut stack, &mut lexemes)?;
 
         Ok(lexemes)
