@@ -18,7 +18,7 @@
 //!
 //! fn main() {
 //!     let date_string = "Five days after 2/12/22 5:00 PM";
-//!     let date = parse(date_string);
+//!     let date = parse(date_string).unwrap();
 //!     println!("{:?}", date);
 //! }
 //! ```
