@@ -5,7 +5,7 @@ use chrono::{
     Datelike,
     NaiveDateTime as ChronoDateTime,
     Duration as ChronoDuration,
-    Weekday as ChronoWeekday
+    Weekday as ChronoWeekday, Timelike
 };
 
 use crate::lexer::Lexeme;
@@ -233,7 +233,7 @@ impl Date {
             tokens += t;
             if let Some((day, t)) = Num::parse(&l[tokens..])? {
                 tokens += t;
-                if l.get(0) == Some(&Lexeme::Comma) {
+                if l.get(tokens) == Some(&Lexeme::Comma) {
                     tokens += 1;
                 }
 
@@ -469,20 +469,20 @@ impl Time {
     fn parse(l: &[Lexeme]) -> Result<(Self, usize), String> {
         let mut tokens = 0;
 
-        if let Some((hour, t)) = Num::parse(l)? {
+        if let Some((hour, t)) = Num::parse(&l[tokens..])? {
             tokens += t;
-            if l.get(0) != Some(&Lexeme::Colon) {
+            if l.get(tokens) != Some(&Lexeme::Colon) {
                 return Err("Expected Colon".into());
             }
 
             tokens += 1;
 
-            if let Some((min, t)) = Num::parse(l)? {
+            if let Some((min, t)) = Num::parse(&l[tokens..])? {
                 tokens += t;
-                if let Some(&Lexeme::AM) = l.get(0) {
+                if let Some(&Lexeme::AM) = l.get(tokens) {
                     tokens += 1;
                     Ok((Time::HourMinAM(hour, min), tokens))
-                } else if let Some(&Lexeme::PM) = l.get(0) {
+                } else if let Some(&Lexeme::PM) = l.get(tokens) {
                     tokens += 1;
                     Ok((Time::HourMinPM(hour, min), tokens))
                 } else {
@@ -669,7 +669,7 @@ impl NumDouble {
         } else if let Some((teens, t)) = Teens::parse(&l[tokens..]) {
             tokens += t;
             Some((teens, tokens))
-        } else if let Some((ones, t)) = Ones::parse(l) {
+        } else if let Some((ones, t)) = Ones::parse(&l[tokens..]) {
             tokens += t;
             Some((ones, tokens))
         } else {
@@ -696,7 +696,13 @@ impl NumTriple {
             tokens += t;
 
             if Some(&Lexeme::Hundred) != l.get(tokens) {
-                return Err("Expected 'hundred'".into());
+                // Try parsing instead as num_double
+                tokens -= t;
+                if let Some((double, t)) = NumDouble::parse(&l[tokens..]) {
+                    return Ok(Some((double, t)));
+                } else {
+                    return Err("Expected 'hundred'".into());
+                }
             }
             tokens += 1;
 
@@ -809,4 +815,112 @@ impl Num {
             Ok(None)
         }
     }
+}
+
+
+#[test]
+fn test_ones() {
+    let lexemes = vec![Lexeme::Five];
+    let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
+
+    assert_eq!(ones, 5);
+    assert_eq!(t, 1);
+}
+
+#[test]
+fn test_ones_literal() {
+    let lexemes = vec![Lexeme::Num(5)];
+    let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
+
+    assert_eq!(ones, 5);
+    assert_eq!(t, 1);
+}
+
+#[test]
+fn test_simple_num() {
+    let lexemes = vec![Lexeme::Num(5)];
+    let (num, t) = Num::parse(lexemes.as_slice()).unwrap().unwrap();
+
+    assert_eq!(num, 5);
+    assert_eq!(t, 1);
+}
+
+#[test]
+fn test_complex_triple_num() {
+    let lexemes = vec![
+        Lexeme::Num(2),
+        Lexeme::Hundred,
+        Lexeme::And,
+        Lexeme::Thirty,
+        Lexeme::Dash,
+        Lexeme::Five
+    ];
+    let (num, t) = NumTriple::parse(lexemes.as_slice()).unwrap().unwrap();
+
+    assert_eq!(num, 235);
+    assert_eq!(t, 6);
+}
+
+#[test]
+fn test_complex_num() {
+    let lexemes = vec![
+        Lexeme::Two,
+        Lexeme::Hundred,
+        Lexeme::Five,
+        Lexeme::Million,
+        Lexeme::Thirty,
+        Lexeme::Thousand,
+        Lexeme::And,
+        Lexeme::Ten
+    ];
+    let (num, t) = Num::parse(lexemes.as_slice()).unwrap().unwrap();
+
+    assert_eq!(num, 205_030_010);
+    assert_eq!(t, 8)
+}
+
+#[test]
+fn test_simple_date_time() {
+    let lexemes = vec![
+        Lexeme::February,
+        Lexeme::Num(16),
+        Lexeme::Num(2022),
+        Lexeme::Num(5),
+        Lexeme::Colon,
+        Lexeme::Num(27),
+        Lexeme::PM
+    ];
+    let (date,t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
+    let date = date.to_chrono();
+
+    assert_eq!(t, 7);
+    assert_eq!(date.year(), 2022);
+    assert_eq!(date.month(), 2);
+    assert_eq!(date.day(), 16);
+    assert_eq!(date.hour(), 17);
+    assert_eq!(date.minute(), 27);
+}
+
+#[test]
+fn test_complex_relative_datetime() {
+    let lexemes = vec![
+        Lexeme::A,
+        Lexeme::Week,
+        Lexeme::After,
+        Lexeme::Two,
+        Lexeme::Day,
+        Lexeme::Before,
+        Lexeme::The,
+        Lexeme::Day,
+        Lexeme::After,
+        Lexeme::Tomorrow
+    ];
+    let today = Local::now().naive_local().date();
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
+    let date = date.to_chrono();
+
+    assert_eq!(t, 10);
+    assert_eq!(date.year(), today.year());
+    assert_eq!(date.month(), today.month());
+    assert_eq!(date.day(), today.day() + 7 - 2 + 1 + 1);
 }

@@ -27,7 +27,7 @@
 //! the current information.
 //!
 //! ## Grammar
-//! ```
+//! ```text
 //! <datetime> ::= <time>
 //!              | <date> <time>
 //!              | <date> , <time>
