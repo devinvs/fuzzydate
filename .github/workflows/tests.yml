@@ -21,7 +21,7 @@ jobs:
         profile: minimal
         toolchain: stable
         override: true
-    - uses: action-rs/cargo@v1
+    - uses: actions-rs/cargo@v1
       with:
         command: check
     - uses: actions-rs/tarpaulin@v0.1
