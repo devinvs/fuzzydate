@@ -1,5 +1,5 @@
 # [FuzzyDate][docsrs]: Date Input for Humans
-============================================
+
 
 [![FuzzyDate Github Actions][gh-image]][gh-checks]
 [![FuzzyDate on crates.io][cratesio-image]][cratesio]
