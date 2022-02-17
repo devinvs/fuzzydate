@@ -3,7 +3,10 @@ name = "fuzzydate"
 version = "0.1.0"
 edition = "2021"
 authors = ["Devin Vander Stelt"]
-keywords = ["date", "parse", "fuzzy", "match", "time", "string"]
+keywords = ["date", "time", "parse", "fuzzy", "string"]
+categories = ["accessibility", "date-and-time", "parser-implementations", "text-processing"]
+license = "MIT"
+repository = "https://github.com/DevinVS/fuzzydate"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
