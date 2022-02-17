@@ -1,5 +1,6 @@
 [package]
 name = "fuzzydate"
+description = "A flexible date parsing library"
 version = "0.1.0"
 edition = "2021"
 authors = ["Devin Vander Stelt"]
