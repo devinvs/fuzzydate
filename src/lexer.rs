@@ -1,16 +1,15 @@
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 lazy_static! {
+    /// Hashmap of keywords to the lexeme that they represent
+    /// Used as definitive source during lexeme
     static ref KEYWORDS: HashMap<&'static str, Lexeme> = {
         let mut map = HashMap::new();
 
         map.insert("an", Lexeme::An);
         map.insert("after", Lexeme::After);
         map.insert("last", Lexeme::Last);
-        map.insert("random", Lexeme::Random);
-        map.insert("between", Lexeme::Between);
         map.insert("this", Lexeme::This);
         map.insert("next", Lexeme::Next);
         map.insert("monday", Lexeme::Monday);
@@ -121,8 +120,6 @@ pub enum Lexeme {
     Comma,
     Colon,
     After,
-    Random,
-    Between,
     Num(u32),
     This,
     Next,

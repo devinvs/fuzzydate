@@ -15,7 +15,6 @@ pub enum DateTime {
     DateTime(Date, Time),
     After(Duration, Box<DateTime>),
     Before(Duration, Box<DateTime>),
-    Random(Box<DateTime>, Box<DateTime>),
     Ago(Duration),
     Now
 }
@@ -67,36 +66,6 @@ impl DateTime {
         } else if l.get(tokens) == Some(&Lexeme::Now) {
             tokens += 1;
             return Ok(Some((Self::Now, tokens)))
-        } else if l.get(tokens) == Some(&Lexeme::Random) {
-            tokens += 1;
-            if l.get(tokens) != Some(&Lexeme::Between) {
-                return Err("Expected 'between'".into());
-            }
-            tokens += 1;
-
-            let start = DateTime::parse(&l[tokens..])?;
-            if start.is_none() {
-                return Err("Expected starting datetime".into());
-            }
-
-            let (start, t) = start.unwrap();
-            tokens += t;
-
-            if l.get(0) != Some(&Lexeme::And) {
-                return Err("Expected 'and'".into());
-            }
-            tokens += 1;
-
-            let end = DateTime::parse(&l[tokens..])?;
-
-            if end.is_none() {
-                return Err("Expected ending datetime".into());
-            }
-
-            let (end, t) = end.unwrap();
-            tokens += t;
-
-            Ok(Some((Self::Random(Box::new(start), Box::new(end)), tokens)))
         } else if let Ok(Some((dur, t))) = Duration::parse(&l[tokens..]) {
             tokens += t;
 
@@ -220,12 +189,6 @@ impl DateTime {
                         _ => unreachable!()
                     }
                 }
-            }
-            DateTime::Random(start, end) => {
-                let start = start.to_chrono().timestamp();
-                let end = end.to_chrono().timestamp();
-
-                ChronoDateTime::from_timestamp(start, 0)
             }
         }
     }
@@ -609,7 +572,6 @@ struct Ones;
 impl Ones {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
         let mut res = match l.get(0) {
-            Some(Lexeme::Zero) => Some(0),
             Some(Lexeme::One) => Some(1),
             Some(Lexeme::Two) => Some(2),
             Some(Lexeme::Three) => Some(3),
@@ -681,8 +643,8 @@ impl Tens {
     }
 }
 
-struct NumTens;
-impl NumTens {
+struct NumDouble;
+impl NumDouble {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
         let mut tokens = 0;
 
@@ -704,7 +666,7 @@ impl NumTens {
         } else {
             if let Some(Lexeme::Num(n)) = l.get(tokens) {
                 tokens += 1;
-                if *n < 100 {
+                if *n < 100 && *n > 19 {
                     Some((*n, tokens))
                 } else {
                     None
@@ -720,52 +682,52 @@ struct NumTriple;
 impl NumTriple {
     fn parse(l: &[Lexeme]) -> Result<Option<(u32, usize)>, String> {
         let mut tokens = 0;
-        if Some(&Lexeme::Hundred) == l.get(tokens) {
-            tokens += 1;
-            if Some(&Lexeme::And) == l.get(tokens) {
-                tokens += 1;
-                let tens = NumTens::parse(&l[tokens..]);
 
-                if tens.is_none() {
-                    return Err("Expected Tens place".into());
-                }
-                let (tens, t) = tens.unwrap();
-                tokens += t;
-
-                Ok(Some((100 + tens, tokens)))
-            } else {
-                let (tens, t) = NumTens::parse(&l[tokens..]).unwrap_or((0,0));
-                tokens += t;
-                Ok(Some((100 + tens, tokens)))
-            }
-        } else if Some(&Lexeme::Hundred) == l.get(tokens+1) {
-            let ones = Ones::parse(&l[tokens..]);
-
-            if ones.is_none() {
-                return Ok(None);
-            }
-
-            let (ones, t) = ones.unwrap();
-
+        if let Some((ones, t)) = Ones::parse(&l[tokens..]) {
             tokens += t;
+
+            if Some(&Lexeme::Hundred) != l.get(tokens) {
+                return Err("Expected 'hundred'".into());
+            }
             tokens += 1;
 
-            if Some(&Lexeme::And) == l.get(tokens) {
-                tokens += 1;
-                if let Some((tens, t)) = NumTens::parse(&l[tokens..]) {
-                    tokens += t;
-                    Ok(Some((ones*100+tens, tokens)))
-                } else {
-                    Err("Expected number after 'and'".into())
-                }
-            } else {
-                let (tens, t) = NumTens::parse(&l[tokens..]).unwrap_or((0, 0));
-                tokens += t;
-                Ok(Some((ones*100+tens, tokens)))
+            let required = Some(&Lexeme::And) == l.get(tokens);
+            if required { tokens += 1; }
+            let double = NumDouble::parse(&l[tokens..]);
+
+            if required && double.is_none() {
+                return Err("Expected number after 'and'".into());
             }
-        } else if let Some((tens, t)) = NumTens::parse(l) {
+
+            let (double, t) = double.unwrap_or((0, 0));
             tokens += t;
-            Ok(Some((tens, tokens)))
+
+            Ok(Some((ones*100+double, tokens)))
+        } else if Some(&Lexeme::Hundred) == l.get(tokens) {
+            tokens += 1;
+
+            let required = Some(&Lexeme::And) == l.get(tokens);
+            if required { tokens += 1; }
+            let double = NumDouble::parse(&l[tokens..]);
+
+            if required && double.is_none() {
+                return Err("Expected number after 'and'".into());
+            }
+
+            let (double, t) = double.unwrap_or((0, 0));
+            tokens += t;
+
+            Ok(Some((100+double, tokens)))
+        } else if let Some((num_double, t)) = NumDouble::parse(&l[tokens..]) {
+            tokens += t;
+            Ok(Some((num_double, tokens)))
+        } else if let Some(&Lexeme::Num(n)) = l.get(tokens) {
+            tokens += 1;
+            if n > 99 && n < 1000 {
+                Ok(Some((n, tokens)))
+            } else {
+                Ok(None)
+            }
         } else {
             Ok(None)
         }
@@ -788,38 +750,52 @@ struct Num;
 impl Num {
     fn parse(l: &[Lexeme]) -> Result<Option<(u32, usize)>, String> {
         let mut tokens = 0;
-        if let Some((unit, t)) = NumTripleUnit::parse(&l[tokens..]) {
-            tokens += t;
-            let ones = Ones::parse(&l[tokens..]);
 
-            if ones.is_none() {
+        if let Some((triple, t)) = NumTriple::parse(&l[tokens..])? {
+            tokens += t;
+            let unit = NumTripleUnit::parse(&l[tokens..]);
+
+            if unit.is_none() {
+                return Ok(Some((triple, tokens)))
+            }
+
+            let (unit, t) = unit.unwrap();
+            tokens += t;
+
+            let required = Some(&Lexeme::And) == l.get(tokens);
+            if required { tokens += 1; }
+            let num = Num::parse(&l[tokens..])?;
+
+            if required && num.is_none() {
                 return Err("Expected num".into());
             }
 
-            let (ones, t) = ones.unwrap();
+            let (num, t) = num.unwrap_or((0, 0));
             tokens += t;
 
-            if Some(&Lexeme::And) == l.get(0) {
-                tokens += 1;
-            }
-
-            let triple = NumTriple::parse(&l[tokens..])?;
-            tokens += triple.map(|e| e.1).unwrap_or(0);
-            let mut val = ones*unit + triple.map(|e| e.0).unwrap_or(0);
-
-            if let Some((next_unit, t)) = NumTripleUnit::parse(&l[tokens..]) {
-                tokens += t;
-                if next_unit < unit {
-                    let (num, t) = Num::parse(&l[tokens..])?.unwrap();
-                    tokens += t;
-                    val += num;
-                }
-            }
-
-            Ok(Some((val, tokens)))
-        } else if let Some((triple, t)) = NumTriple::parse(&l[tokens..])? {
+            Ok(Some((triple*unit+num, tokens)))
+        } else if let Some((unit, t)) = NumTripleUnit::parse(&l[tokens..]) {
             tokens += t;
-            Ok(Some((triple, tokens)))
+
+            let required = Some(&Lexeme::And) == l.get(tokens);
+            if required { tokens += 1; }
+            let num = Num::parse(&l[tokens..])?;
+
+            if required && num.is_none() {
+                return Err("Expected num".into());
+            }
+
+            let (num, t) = num.unwrap_or((0, 0));
+            tokens += t;
+
+            Ok(Some((unit + num, tokens)))
+        } else if let Some(&Lexeme::Num(n)) = l.get(tokens) {
+            tokens += 1;
+            if n >= 1000 {
+                Ok(Some((n, tokens)))
+            } else {
+                Ok(None)
+            }
         } else {
             Ok(None)
         }
