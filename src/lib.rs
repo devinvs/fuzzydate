@@ -32,13 +32,14 @@
 //!              | <date> <time>
 //!              | <date> , <time>
 //!              | <duration> after <datetime>
-//!              | a <unit> after <datetime>
-//!              | the <unit> after <datetime>
-//!              | a <unit> before <datetime>
-//!              | the <unit> before <datetime>
 //!              | <duration> from <datetime>
+//!              | <duration> before <datetime>
 //!              | <duration> ago
 //!              | now
+//!
+//! <article> ::= a
+//!            | an
+//!            | the
 //!
 //! <date> ::= today
 //!          | tomorrow
@@ -95,6 +96,7 @@
 //!           | dec
 //!
 //! <duration> ::= <num> <unit>
+//!              | <article> <unit>
 //!
 //! <time> ::= <num>:<num>
 //!          | <num>:<num> am

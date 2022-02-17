@@ -30,47 +30,7 @@ impl DateTime {
     pub fn parse(l: &[Lexeme]) -> Result<Option<(Self, usize)>, String> {
         let mut tokens = 0;
 
-        if l.get(tokens) == Some(&Lexeme::A) || l.get(tokens) == Some(&Lexeme::The) || l.get(tokens) == Some(&Lexeme::An) {
-            tokens += 1;
-
-            if let Some((unit, t)) = Unit::parse(&l[tokens..]) {
-                tokens += t;
-                if Some(&Lexeme::After) == l.get(tokens) || Some(&Lexeme::From) == l.get(tokens) {
-                    tokens += 1;
-                    let datetime = DateTime::parse(&l[tokens..])?;
-
-                    if datetime.is_none() {
-                        return Err("Expected datetime".into());
-                    }
-
-                    let (datetime, t) = datetime.unwrap();
-                    tokens += t;
-
-                    Ok(Some((Self::After(Duration {unit, num: 1}, Box::new(datetime)), tokens)))
-                } else if Some(&Lexeme::Before) == l.get(tokens) {
-                    tokens += 1;
-                    let datetime = DateTime::parse(&l[tokens..])?;
-
-                    if datetime.is_none() {
-                        return Err("Expected datetime".into());
-                    }
-
-                    let (datetime, t) = datetime.unwrap();
-                    tokens += t;
-
-                    Ok(Some((Self::Before(Duration { unit, num: 1 }, Box::new(datetime)), tokens)))
-                } else if Some(&Lexeme::Ago) == l.get(tokens) {
-                    tokens += 1;
-                    Ok(Some((Self::Ago(Duration{unit, num: 1}), tokens)))
-
-                } else {
-                    Err("Expected 'after' 'before' or 'ago'".into())
-                }
-            } else {
-                Err("Expected Unit".into())
-            }
-
-        } else if l.get(tokens) == Some(&Lexeme::Now) {
+        if l.get(tokens) == Some(&Lexeme::Now) {
             tokens += 1;
             return Ok(Some((Self::Now, tokens)))
         } else if let Ok(Some((dur, t))) = Duration::parse(&l[tokens..]) {
@@ -139,17 +99,17 @@ impl DateTime {
                 if dur.convertable() {
                     date + dur.to_chrono()
                 } else {
-                    match dur.unit {
+                    match dur.unit() {
                         Unit::Month => {
                             if date.month() == 12 {
                                 date = date.with_month(1).unwrap();
                                 date.with_year(date.year() + 1).unwrap()
                             } else {
-                                date.with_month(date.month()+dur.num).unwrap()
+                                date.with_month(date.month()+dur.num()).unwrap()
                             }
                         }
                         Unit::Year => {
-                            date.with_year(date.year()+dur.num as i32).unwrap()
+                            date.with_year(date.year()+dur.num() as i32).unwrap()
                         }
                         _ => unreachable!()
                     }
@@ -161,17 +121,17 @@ impl DateTime {
                 if dur.convertable() {
                     date - dur.to_chrono()
                 } else {
-                    match dur.unit {
+                    match dur.unit() {
                         Unit::Month => {
                             if date.month() == 1 {
                                 date = date.with_month(12).unwrap();
                                 date.with_year(date.year() - 1 as i32).unwrap()
                             } else {
-                                date.with_month(date.month()-dur.num).unwrap()
+                                date.with_month(date.month()-dur.num()).unwrap()
                             }
                         }
                         Unit::Year => {
-                            date.with_year(date.year()-dur.num as i32).unwrap()
+                            date.with_year(date.year()-dur.num() as i32).unwrap()
                         }
                         _ => unreachable!()
                     }
@@ -183,17 +143,17 @@ impl DateTime {
                 if dur.convertable() {
                     date - dur.to_chrono()
                 } else {
-                    match dur.unit {
+                    match dur.unit() {
                         Unit::Month => {
                             if date.month() == 1 {
                                 date = date.with_month(12).unwrap();
                                 date.with_year(date.year() - 1 as i32).unwrap()
                             } else {
-                                date.with_month(date.month()-dur.num).unwrap()
+                                date.with_month(date.month()-dur.num()).unwrap()
                             }
                         }
                         Unit::Year => {
-                            date.with_year(date.year()-dur.num as i32).unwrap()
+                            date.with_year(date.year()-dur.num() as i32).unwrap()
                         }
                         _ => unreachable!()
                     }
@@ -514,9 +474,28 @@ impl Time {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Duration {
-    num: u32,
-    unit: Unit
+pub enum Article {
+    A,
+    An,
+    The
+}
+
+impl Article {
+    fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
+        match l.get(0) {
+            Some(Lexeme::A) => Some((Self::A, 1)),
+            Some(Lexeme::An) => Some((Self::An, 1)),
+            Some(Lexeme::The) => Some((Self::The, 1)),
+            _ => None
+        }
+    }
+}
+
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Duration {
+    Article(Unit),
+    Specific(u32, Unit)
 }
 
 impl Duration {
@@ -527,7 +506,15 @@ impl Duration {
             tokens += t;
             if let Some((u, t)) = Unit::parse(&l[tokens..]) {
                 tokens += t;
-                Ok(Some((Self {num, unit: u}, tokens)))
+                Ok(Some((Self::Specific(num, u), tokens)))
+            } else {
+                Err("Expected Unit while parsing Duration".into())
+            }
+        } else if let Some((_, t)) = Article::parse(l) {
+            tokens += t;
+            if let Some((u, t)) = Unit::parse(&l[tokens..]) {
+                tokens += t;
+                Ok(Some((Self::Article(u), tokens)))
             } else {
                 Err("Expected Unit while parsing Duration".into())
             }
@@ -536,17 +523,35 @@ impl Duration {
         }
     }
 
+    fn unit(&self) -> &Unit {
+        match self {
+            Duration::Article(u) => u,
+            Duration::Specific(_, u) => u
+        }
+    }
+
+    fn num(&self) -> u32 {
+        match *self {
+            Duration::Article(_) => 1,
+            Duration::Specific(num, _) => num
+        }
+    }
+
     fn convertable(&self) -> bool {
-        self.unit != Unit::Month &&
-        self.unit != Unit::Year
+        let unit = self.unit();
+        unit != &Unit::Month &&
+        unit != &Unit::Year
     }
 
     fn to_chrono(&self) -> ChronoDuration {
-        match self.unit {
-            Unit::Day => ChronoDuration::days(self.num as i64),
-            Unit::Week => ChronoDuration::weeks(self.num as i64),
-            Unit::Hour => ChronoDuration::hours(self.num as i64),
-            Unit::Minute => ChronoDuration::minutes(self.num as i64),
+        let unit = self.unit();
+        let num = self.num();
+
+        match unit {
+            Unit::Day => ChronoDuration::days(num as i64),
+            Unit::Week => ChronoDuration::weeks(num as i64),
+            Unit::Hour => ChronoDuration::hours(num as i64),
+            Unit::Minute => ChronoDuration::minutes(num as i64),
             _ => unreachable!()
         }
     }
