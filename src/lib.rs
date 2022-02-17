@@ -24,7 +24,7 @@
 //! ```
 //!
 //! Any relevant date time information not specified is assumed to be
-//! the current information.
+//! the value of the current date time.
 //!
 //! ## Grammar
 //! ```text
@@ -181,10 +181,11 @@
 mod lexer;
 mod ast;
 
-use chrono::{NaiveDateTime, Datelike};
+use chrono::{NaiveDateTime, NaiveTime, Local};
 
-/// Parse an input string into a chrono NaiveDateTime
-pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
+/// Parse an input string into a chrono NaiveDateTime, using the default
+/// values from the specified default value where not specified
+pub fn parse_with_default_time(input: &str, default: NaiveTime) -> Result<NaiveDateTime, String> {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let tree = ast::DateTime::parse(lexemes.as_slice())?;
 
@@ -192,11 +193,19 @@ pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
         return Err("No DateTime Found".into());
     }
 
-    Ok(tree.unwrap().0.to_chrono())
+    let date = tree.unwrap().0.to_chrono(default);
+    Ok(date)
+}
+
+/// Parse an input string into a chrono NaiveDateTime with the default
+/// time being now
+pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
+    parse_with_default_time(input, Local::now().naive_local().time())
 }
 
 #[test]
 fn test_parse() {
+    use chrono::Datelike;
     let input = "2/12/2022";
     let date = parse(input).unwrap();
 

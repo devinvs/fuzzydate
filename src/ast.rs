@@ -5,7 +5,7 @@ use chrono::{
     Datelike,
     NaiveDateTime as ChronoDateTime,
     Duration as ChronoDuration,
-    Weekday as ChronoWeekday, Timelike
+    Weekday as ChronoWeekday
 };
 
 use crate::lexer::Lexeme;
@@ -124,17 +124,17 @@ impl DateTime {
     }
 
     /// Convert a parsed DateTime to chrono's NaiveDateTime
-    pub fn to_chrono(&self) -> ChronoDateTime {
+    pub fn to_chrono(&self, default: ChronoTime) -> ChronoDateTime {
         match self {
             DateTime::Now => Local::now().naive_local(),
             DateTime::DateTime(date, time) => {
                 let date = date.to_chrono();
-                let time = time.to_chrono();
+                let time = time.to_chrono(default);
 
                 ChronoDateTime::new(date, time)
             }
             DateTime::After(dur, date) => {
-                let mut date = date.to_chrono();
+                let mut date = date.to_chrono(default);
 
                 if dur.convertable() {
                     date + dur.to_chrono()
@@ -156,7 +156,7 @@ impl DateTime {
                 }
             }
             DateTime::Before(dur, date) => {
-                let mut date = date.to_chrono();
+                let mut date = date.to_chrono(default);
 
                 if dur.convertable() {
                     date - dur.to_chrono()
@@ -303,7 +303,7 @@ impl Date {
                 today + ChronoDuration::days(1)
             }
             Date::MonthNumDay(month, day) => {
-                let today = Local::now().naive_local().date();
+                let today = Local::now().naive_local();
                 ChronoDate::from_ymd(today.year(), *month, *day)
             }
             Date::MonthNumDayYear(month, day, year) => {
@@ -321,7 +321,7 @@ impl Date {
                 ChronoDate::from_ymd(year as i32, *month, *day)
             }
             Date::MonthDay(month, day) => {
-                let today = Local::now().naive_local().date();
+                let today = Local::now().naive_local();
                 let month = *month as u32;
                 ChronoDate::from_ymd(today.year(), month, *day)
             }
@@ -497,9 +497,9 @@ impl Time {
         }
     }
 
-    fn to_chrono(&self) -> ChronoTime {
+    fn to_chrono(&self, default: ChronoTime) -> ChronoTime {
         match *self {
-            Time::Empty => Local::now().naive_local().time(),
+            Time::Empty => default,
             Time::HourMin(hour, min) => {
                 ChronoTime::from_hms(hour, min, 0)
             }
@@ -882,6 +882,8 @@ fn test_complex_num() {
 
 #[test]
 fn test_simple_date_time() {
+    use chrono::Timelike;
+
     let lexemes = vec![
         Lexeme::February,
         Lexeme::Num(16),
@@ -892,7 +894,7 @@ fn test_simple_date_time() {
         Lexeme::PM
     ];
     let (date,t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
-    let date = date.to_chrono();
+    let date = date.to_chrono(Local::now().naive_local().time());
 
     assert_eq!(t, 7);
     assert_eq!(date.year(), 2022);
@@ -918,7 +920,7 @@ fn test_complex_relative_datetime() {
     ];
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
-    let date = date.to_chrono();
+    let date = date.to_chrono(Local::now().naive_local().time());
 
     assert_eq!(t, 10);
     assert_eq!(date.year(), today.year());
@@ -928,9 +930,11 @@ fn test_complex_relative_datetime() {
 
 #[test]
 fn test_datetime_now() {
+    use chrono::Timelike;
+
     let lexemes = vec![Lexeme::Now];
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
-    let date = date.to_chrono();
+    let date = date.to_chrono(Local::now().naive_local().time());
 
     let now = Local::now().naive_local();
     assert_eq!(t, 1);
@@ -957,7 +961,7 @@ fn test_malformed_after() {
 fn test_datetime_ago() {
     let lexemes = vec![Lexeme::One, Lexeme::Day, Lexeme::Ago];
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap().unwrap();
-    let date = date.to_chrono();
+    let date = date.to_chrono(Local::now().naive_local().time());
 
     let today = Local::now().naive_local().date();
     assert_eq!(t, 3);
@@ -983,7 +987,7 @@ fn test_teens() {
 #[test]
 fn test_article_before() {
     let (date, t) = DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap().unwrap();
-    let date = date.to_chrono();
+    let date = date.to_chrono(Local::now().naive_local().time());
     let today = Local::now().naive_local().date();
     assert_eq!(t, 4);
     assert_eq!(date.year(), today.year());
