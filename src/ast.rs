@@ -29,46 +29,50 @@ impl DateTime {
     /// Parse a datetime from a slice of lexemes
     pub fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
         let mut tokens = 0;
-
         if l.get(tokens) == Some(&Lexeme::Now) {
             tokens += 1;
             return Some((Self::Now, tokens))
-        } else if let Some((dur, t)) = Duration::parse(&l[tokens..]) {
+        }
+
+        tokens = 0;
+        if let Some((dur, t)) = Duration::parse(&l[tokens..]) {
             tokens += t;
 
-            if Some(&Lexeme::After) == l.get(tokens) || Some(&Lexeme::From) == l.get(tokens) {
+            if Some(&Lexeme::After) == l.get(tokens)
+            || Some(&Lexeme::From) == l.get(tokens) {
                 tokens += 1;
 
-                let (datetime, t) = DateTime::parse(&l[tokens..])?;
-                tokens += t;
-
-                Some((Self::After(dur, Box::new(datetime)), tokens))
+                if let Some((datetime, t)) = DateTime::parse(&l[tokens..]) {
+                    tokens += t;
+                    return Some((Self::After(dur, Box::new(datetime)), tokens));
+                }
             } else if Some(&Lexeme::Before) == l.get(tokens) {
                 tokens += 1;
 
-                let (datetime, t) = DateTime::parse(&l[tokens..])?;
-                tokens += t;
-
-                Some((Self::Before(dur, Box::new(datetime)), tokens))
+                if let Some((datetime, t)) = DateTime::parse(&l[tokens..]) {
+                    tokens += t;
+                    return Some((Self::Before(dur, Box::new(datetime)), tokens));
+                }
             } else if Some(&Lexeme::Ago) == l.get(tokens) {
                 tokens += 1;
-                Some((Self::Ago(dur), tokens))
-            } else {
-                None
+                return Some((Self::Ago(dur), tokens));
             }
-        } else if let Some((date, t)) = Date::parse(&l[tokens..]) {
+        }
+
+        tokens = 0;
+        if let Some((date, t)) = Date::parse(&l[tokens..]) {
             tokens += t;
             if l.get(tokens) == Some(&Lexeme::Comma) {
                 tokens += 1;
             }
 
-            let (time, t) = Time::parse(&l[tokens..])?;
-            tokens += t;
-
-            Some((Self::DateTime(date, time), tokens))
-        } else {
-            None
+            if let Some((time, t)) = Time::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::DateTime(date, time), tokens));
+            }
         }
+
+        None
     }
 
     /// Convert a parsed DateTime to chrono's NaiveDateTime
@@ -171,14 +175,23 @@ impl Date {
 
         if let Some(&Lexeme::Today) = l.get(tokens) {
             tokens += 1;
-            Some((Self::Today, tokens))
-        } else if let Some(&Lexeme::Tomorrow) = l.get(tokens) {
+            return Some((Self::Today, tokens));
+        }
+
+        tokens = 0;
+        if let Some(&Lexeme::Tomorrow) = l.get(tokens) {
             tokens += 1;
-            Some((Self::Tomorrow, tokens))
-        } else if let Some(&Lexeme::Yesterday) = l.get(tokens) {
+            return Some((Self::Tomorrow, tokens));
+        }
+
+        tokens = 0;
+        if let Some(&Lexeme::Yesterday) = l.get(tokens) {
             tokens += 1;
-            Some((Self::Yesterday, tokens))
-        } else if let Some((month, t)) = Month::parse(&l[tokens..]) {
+            return Some((Self::Yesterday, tokens));
+        }
+
+        tokens = 0;
+        if let Some((month, t)) = Month::parse(&l[tokens..]) {
             tokens += t;
 
             let (day, t) = Num::parse(&l[tokens..])?;
@@ -190,46 +203,49 @@ impl Date {
 
             if let Some((year, t)) = Num::parse(&l[tokens..]) {
                 tokens += t;
-                Some((Self::MonthDayYear(month, day, year), tokens))
+                return Some((Self::MonthDayYear(month, day, year), tokens));
             } else {
-                Some((Self::MonthDay(month, day), tokens))
+                return Some((Self::MonthDay(month, day), tokens));
             }
-        } else if let Some((relspec, t)) = RelativeSpecifier::parse(&l[tokens..]) {
-            tokens += t;
-            let (weekday, t) = Weekday::parse(&l[tokens..])?;
+        }
+
+        tokens = 0;
+        if let Some((relspec, t)) = RelativeSpecifier::parse(&l[tokens..]) {
             tokens += t;
 
-            Some((Self::Relative(relspec, weekday), tokens))
+            if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::Relative(relspec, weekday), tokens));
+            }
         } else if let Some((weekday,t)) = Weekday::parse(&l[tokens..]) {
             tokens += t;
-            Some((Self::Weekday(weekday), tokens))
+            return Some((Self::Weekday(weekday), tokens));
         } else if let Some((month, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
-            let delim = l.get(tokens)?;
+            if let Some(delim) = l.get(tokens) {
+                if delim == &Lexeme::Slash || delim == &Lexeme::Dash {
+                    // Consume slash or dash
+                    tokens += 1;
 
-            if delim != &Lexeme::Slash && delim != &Lexeme::Dash {
-                return None;
+                    if let Some((day, t)) = Num::parse(&l[tokens..]) {
+                        tokens += t;
+                        if l.get(tokens)? == delim {
+                            // Consume slash or dash
+                            tokens += 1;
+
+                            let (year, t) = Num::parse(&l[tokens..])?;
+                            tokens += t;
+                            return Some((Self::MonthNumDayYear(month, day, year), tokens));
+                        } else {
+                            return Some((Self::MonthNumDay(month, day), tokens));
+                        }
+
+                    }
+                }
             }
-
-            // Consume slash or dash
-            tokens += 1;
-
-            let (day, t) = Num::parse(&l[tokens..])?;
-            tokens += t;
-
-            if l.get(tokens)? == delim {
-                // Consume slash or dash
-                tokens += 1;
-
-                let (year, t) = Num::parse(&l[tokens..])?;
-                tokens += t;
-                Some((Self::MonthNumDayYear(month, day, year), tokens))
-            } else {
-                Some((Self::MonthNumDay(month, day), tokens))
-            }
-        } else {
-            None
         }
+
+        None
     }
 
     fn to_chrono(&self) -> ChronoDate {
@@ -413,29 +429,26 @@ impl Time {
 
         if let Some((hour, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
-            if l.get(tokens) != Some(&Lexeme::Colon) {
-                return None;
-            }
+            if l.get(tokens) == Some(&Lexeme::Colon) {
+                tokens += 1;
 
-            tokens += 1;
-
-            if let Some((min, t)) = Num::parse(&l[tokens..]) {
-                tokens += t;
-                if let Some(&Lexeme::AM) = l.get(tokens) {
-                    tokens += 1;
-                    Some((Time::HourMinAM(hour, min), tokens))
-                } else if let Some(&Lexeme::PM) = l.get(tokens) {
-                    tokens += 1;
-                    Some((Time::HourMinPM(hour, min), tokens))
-                } else {
-                    Some((Time::HourMin(hour, min), tokens))
+                if let Some((min, t)) = Num::parse(&l[tokens..]) {
+                    tokens += t;
+                    if let Some(&Lexeme::AM) = l.get(tokens) {
+                        tokens += 1;
+                        return Some((Time::HourMinAM(hour, min), tokens));
+                    } else if let Some(&Lexeme::PM) = l.get(tokens) {
+                        tokens += 1;
+                        return Some((Time::HourMinPM(hour, min), tokens));
+                    } else {
+                        return Some((Time::HourMin(hour, min), tokens));
+                    }
                 }
-            } else {
-                None
             }
-        } else {
-            Some((Self::Empty, tokens))
         }
+
+        tokens = 0;
+        Some((Self::Empty, tokens))
     }
 
     fn to_chrono(&self, default: ChronoTime) -> ChronoTime {
@@ -463,7 +476,6 @@ pub enum Article {
 
 impl Article {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        println!("article");
         match l.get(0) {
             Some(Lexeme::A) => Some((Self::A, 1)),
             Some(Lexeme::An) => Some((Self::An, 1)),
@@ -486,19 +498,22 @@ impl Duration {
 
         if let Some((num, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
-            let (u, t) = Unit::parse(&l[tokens..])?;
-            tokens += t;
-
-            Some((Self::Specific(num, u), tokens))
-        } else if let Some((_, t)) = Article::parse(l) {
-            tokens += t;
-            let (u, t) = Unit::parse(&l[tokens..])?;
-            tokens += t;
-
-            Some((Self::Article(u), tokens))
-        } else {
-            None
+            if let Some((u, t)) = Unit::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::Specific(num, u), tokens));
+            }
         }
+
+        tokens = 0;
+        if let Some((_, t)) = Article::parse(l) {
+            tokens += t;
+            if let Some((u, t)) = Unit::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::Article(u), tokens));
+            }
+        }
+
+        None
     }
 
     fn unit(&self) -> &Unit {
@@ -547,7 +562,6 @@ pub enum Unit {
 
 impl Unit {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        println!("unit");
         match l.get(0) {
             Some(Lexeme::Day) => Some((Unit::Day, 1)),
             Some(Lexeme::Week) => Some((Unit::Week, 1)),
@@ -643,32 +657,39 @@ impl NumDouble {
         let mut tokens = 0;
 
         if let Some((tens, t)) = Tens::parse(&l[tokens..]) {
+            println!("tens: {tens:?}");
             tokens += t;
+
             if Some(&Lexeme::Dash) == l.get(tokens) {
                 tokens += 1;
             }
 
             let (ones, t) = Ones::parse(&l[tokens..]).unwrap_or((0, 0));
             tokens += t;
-            Some((tens + ones, tokens))
-        } else if let Some((teens, t)) = Teens::parse(&l[tokens..]) {
+            return Some((tens + ones, tokens))
+        }
+
+        tokens = 0;
+        if let Some((teens, t)) = Teens::parse(&l[tokens..]) {
             tokens += t;
-            Some((teens, tokens))
-        } else if let Some((ones, t)) = Ones::parse(&l[tokens..]) {
+            return Some((teens, tokens));
+        }
+
+        tokens = 0;
+        if let Some((ones, t)) = Ones::parse(&l[tokens..]) {
             tokens += t;
-            Some((ones, tokens))
-        } else {
-            if let Some(Lexeme::Num(n)) = l.get(tokens) {
-                tokens += 1;
-                if *n < 100 && *n > 19 {
-                    Some((*n, tokens))
-                } else {
-                    None
-                }
-            } else {
-                None
+            return Some((ones, tokens));
+        }
+
+        tokens = 0;
+        if let Some(Lexeme::Num(n)) = l.get(tokens) {
+            tokens += 1;
+            if *n < 100 && *n > 19 {
+                return Some((*n, tokens));
             }
         }
+
+        None
     }
 }
 
@@ -680,55 +701,54 @@ impl NumTriple {
         if let Some((ones, t)) = Ones::parse(&l[tokens..]) {
             tokens += t;
 
-            if Some(&Lexeme::Hundred) != l.get(tokens) {
-                // Try parsing instead as num_double
-                tokens -= t;
-                return NumDouble::parse(&l[tokens..]).map(|(n,t)| (n,t+tokens));
-            }
+            if Some(&Lexeme::Hundred) == l.get(tokens) {
+                // Consume 'Hundred'
+                tokens += 1;
 
-            // Consume 'Hundred'
+                let required = Some(&Lexeme::And) == l.get(tokens);
+                if required { tokens += 1; }
+                let double = NumDouble::parse(&l[tokens..]);
+
+                if !required || double.is_some() {
+                    let (double, t) = double.unwrap_or((0, 0));
+                    tokens += t;
+
+                    return Some((ones*100+double, tokens));
+                }
+            }
+        }
+
+        tokens = 0;
+        if Some(&Lexeme::Hundred) == l.get(tokens) {
             tokens += 1;
 
             let required = Some(&Lexeme::And) == l.get(tokens);
             if required { tokens += 1; }
             let double = NumDouble::parse(&l[tokens..]);
 
-            if required && double.is_none() {
-                return None;
+            if !required || double.is_some() {
+                let (double, t) = double.unwrap_or((0, 0));
+                tokens += t;
+
+                return Some((100+double, tokens));
             }
+        }
 
-            let (double, t) = double.unwrap_or((0, 0));
+        tokens = 0;
+        if let Some((num_double, t)) = NumDouble::parse(&l[tokens..]) {
             tokens += t;
+            return Some((num_double, tokens));
+        }
 
-            Some((ones*100+double, tokens))
-        } else if Some(&Lexeme::Hundred) == l.get(tokens) {
-            tokens += 1;
-
-            let required = Some(&Lexeme::And) == l.get(tokens);
-            if required { tokens += 1; }
-            let double = NumDouble::parse(&l[tokens..]);
-
-            if required && double.is_none() {
-                return None;
-            }
-
-            let (double, t) = double.unwrap_or((0, 0));
-            tokens += t;
-
-            Some((100+double, tokens))
-        } else if let Some((num_double, t)) = NumDouble::parse(&l[tokens..]) {
-            tokens += t;
-            Some((num_double, tokens))
-        } else if let Some(&Lexeme::Num(n)) = l.get(tokens) {
+        tokens = 0;
+        if let Some(&Lexeme::Num(n)) = l.get(tokens) {
             tokens += 1;
             if n > 99 && n < 1000 {
-                Some((n, tokens))
-            } else {
-                None
+                return Some((n, tokens));
             }
-        } else {
-            None
         }
+
+        None
     }
 }
 
@@ -747,10 +767,12 @@ impl NumTripleUnit {
 struct Num;
 impl Num {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
+        println!("Parse NUM: {:?}", l.get(0));
         let mut tokens = 0;
 
         // <num_triple>
         if let Some((triple, t)) = NumTriple::parse(&l[tokens..]) {
+            println!("triple: {triple:?}");
             tokens += t;
 
             // <num_triple_unit>
@@ -760,6 +782,7 @@ impl Num {
                 let required = Some(&Lexeme::And) == l.get(tokens);
                 if required { tokens += 1; }    // Consume and
                 let num = Num::parse(&l[tokens..]);
+                println!("NUM: {num:?}");
 
                 if !required || num.is_some() {
                     let (num, t) = num.unwrap_or((0, 0));
@@ -865,8 +888,8 @@ fn test_complex_num() {
     ];
     let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
 
+    assert_eq!(t, 8);
     assert_eq!(num, 205_030_010);
-    assert_eq!(t, 8)
 }
 
 #[test]
