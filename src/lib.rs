@@ -189,10 +189,10 @@ use chrono::{NaiveDateTime, NaiveTime, Local};
 /// values from the specified default value where not specified
 pub fn parse_with_default_time(input: &str, default: NaiveTime) -> Result<NaiveDateTime, String> {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let tree = ast::DateTime::parse(lexemes.as_slice())?;
+    let tree = ast::DateTime::parse(lexemes.as_slice());
 
     if tree.is_none() {
-        return Err("No DateTime Found".into());
+        return Err("Unrecognized Date Format".into());
     }
 
     let date = tree.unwrap().0.to_chrono(default);
