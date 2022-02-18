@@ -657,7 +657,6 @@ impl NumDouble {
         let mut tokens = 0;
 
         if let Some((tens, t)) = Tens::parse(&l[tokens..]) {
-            println!("tens: {tens:?}");
             tokens += t;
 
             if Some(&Lexeme::Dash) == l.get(tokens) {
@@ -767,12 +766,10 @@ impl NumTripleUnit {
 struct Num;
 impl Num {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        println!("Parse NUM: {:?}", l.get(0));
         let mut tokens = 0;
 
         // <num_triple>
         if let Some((triple, t)) = NumTriple::parse(&l[tokens..]) {
-            println!("triple: {triple:?}");
             tokens += t;
 
             // <num_triple_unit>
@@ -782,7 +779,6 @@ impl Num {
                 let required = Some(&Lexeme::And) == l.get(tokens);
                 if required { tokens += 1; }    // Consume and
                 let num = Num::parse(&l[tokens..]);
-                println!("NUM: {num:?}");
 
                 if !required || num.is_some() {
                     let (num, t) = num.unwrap_or((0, 0));
