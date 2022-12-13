@@ -186,22 +186,34 @@ mod lexer;
 
 use chrono::{Local, NaiveDateTime, NaiveTime};
 
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum Error {
+    #[error("Unrecognized date")]
+    UnrecognizedDate,
+    #[error("Unexpected token: {0}")]
+    UnexpectedToken(String),
+}
+
+type Output = Result<NaiveDateTime, Error>; // so that we don't have to change this in both places
+
 /// Parse an input string into a chrono NaiveDateTime, using the default
 /// values from the specified default value where not specified
 ///
 /// Returns [`None`] if the input date is unrecognized.
-pub fn parse_with_default_time(input: &str, default: NaiveTime) -> Option<NaiveDateTime> {
-    let lexemes = lexer::Lexeme::lex_line(input.into()).ok()?;
-    let tree = ast::DateTime::parse(lexemes.as_slice());
+pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> Output {
+    let lexemes = lexer::Lexeme::lex_line(input.into())?;
+    let Some((tree, _)) = ast::DateTime::parse(lexemes.as_slice()) else {
+        return Err(Error::UnrecognizedDate);
+    };
 
-    tree.and_then(|t| t.0.to_chrono(default))
+    tree.to_chrono(default).ok_or(Error::UnrecognizedDate)
 }
 
 /// Parse an input string into a chrono NaiveDateTime with the default
 /// time being now
 ///
 /// Returns [`None`] if the input date is unrecognized.
-pub fn parse(input: &str) -> Option<NaiveDateTime> {
+pub fn parse(input: impl Into<String>) -> Output {
     parse_with_default_time(input, Local::now().naive_local().time())
 }
 
@@ -220,12 +232,12 @@ fn test_parse() {
 fn test_malformed() {
     let input = "Hello World";
     let date = parse(input);
-    assert!(date.is_none());
+    assert!(date.is_err());
 }
 
 #[test]
 fn test_empty() {
     let input = "";
     let date = parse(input);
-    assert!(date.is_none());
+    assert!(date.is_err());
 }

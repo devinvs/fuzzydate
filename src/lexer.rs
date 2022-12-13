@@ -191,18 +191,9 @@ pub enum Lexeme {
     Last,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UnexpectedToken(String);
-impl std::fmt::Display for UnexpectedToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unexpected Token: {}", self.0)
-    }
-}
-impl std::error::Error for UnexpectedToken {}
-
 impl Lexeme {
     /// Lex a string into a list of Lexemes
-    pub fn lex_line(s: String) -> Result<Vec<Lexeme>, UnexpectedToken> {
+    pub fn lex_line(s: String) -> Result<Vec<Lexeme>, crate::Error> {
         // Convert s to lowercase to remove case sensitive behaviour
         let s = s.to_lowercase();
 
@@ -214,22 +205,21 @@ impl Lexeme {
         // and our lexemes, searches our keyword map for the stack,
         // tries to convert the stack into a integer, adds the appropriate
         // lexemes if successfully, and zeroes out the stack
-        let push_lexeme =
-            |stack: &mut String, ls: &mut Vec<Lexeme>| -> Result<(), UnexpectedToken> {
-                if stack.is_empty() {
-                    Ok(())
-                } else if let Some(l) = KEYWORDS.get(stack.as_str()) {
-                    ls.push(*l);
-                    *stack = String::with_capacity(10);
-                    Ok(())
-                } else if let Ok(num) = stack.parse::<u32>() {
-                    ls.push(Lexeme::Num(num));
-                    *stack = String::with_capacity(10);
-                    Ok(())
-                } else {
-                    Err(UnexpectedToken(stack.clone()))
-                }
-            };
+        let push_lexeme = |stack: &mut String, ls: &mut Vec<Lexeme>| {
+            if stack.is_empty() {
+                Ok(())
+            } else if let Some(l) = KEYWORDS.get(stack.as_str()) {
+                ls.push(*l);
+                *stack = String::with_capacity(10);
+                Ok(())
+            } else if let Ok(num) = stack.parse::<u32>() {
+                ls.push(Lexeme::Num(num));
+                *stack = String::with_capacity(10);
+                Ok(())
+            } else {
+                Err(crate::Error::UnexpectedToken(stack.clone()))
+            }
+        };
 
         // While we have characters left in the string
         for c in chars {
