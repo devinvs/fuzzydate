@@ -197,8 +197,9 @@ pub enum Error {
     /// e.g. `"tomorrow at at 5pm"`, `"Frriday"`
     UnableToParse,
 }
-
-type Output = Result<NaiveDateTime, Error>; // so that we don't have to change this in both places
+// so that we don't have to change this in both places
+// doesn't show up in the docs
+type Output = Result<NaiveDateTime, Error>;
 
 /// Parse an input string into a chrono NaiveDateTime, using the default
 /// values from the specified default value where not specified
