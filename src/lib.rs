@@ -205,9 +205,7 @@ type Output = Result<NaiveDateTime, Error>;
 /// values from the specified default value where not specified
 pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> Output {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let Some((tree, _)) = ast::DateTime::parse(lexemes.as_slice()) else {
-        return Err(Error::UnableToParse);
-    };
+    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::UnableToParse)?;
 
     tree.to_chrono(default).ok_or(Error::Invalid)
 }
