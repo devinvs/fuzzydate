@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! # FuzzyDate: Date Input for Humans
 //!
 //! A Parser which can turn a variety of input strings into a DateTime
@@ -180,28 +181,27 @@
 //!          | NUM      ; number literal less than 10
 //! ```
 
-mod lexer;
 mod ast;
+mod lexer;
 
-use chrono::{NaiveDateTime, NaiveTime, Local};
+use chrono::{Local, NaiveDateTime, NaiveTime};
 
 /// Parse an input string into a chrono NaiveDateTime, using the default
 /// values from the specified default value where not specified
-pub fn parse_with_default_time(input: &str, default: NaiveTime) -> Result<NaiveDateTime, String> {
-    let lexemes = lexer::Lexeme::lex_line(input.into())?;
+///
+/// Returns [`None`] if the input date is unrecognized.
+pub fn parse_with_default_time(input: &str, default: NaiveTime) -> Option<NaiveDateTime> {
+    let lexemes = lexer::Lexeme::lex_line(input.into()).ok()?;
     let tree = ast::DateTime::parse(lexemes.as_slice());
 
-    if tree.is_none() {
-        return Err("Unrecognized Date Format".into());
-    }
-
-    let date = tree.unwrap().0.to_chrono(default);
-    Ok(date)
+    tree.and_then(|t| t.0.to_chrono(default))
 }
 
 /// Parse an input string into a chrono NaiveDateTime with the default
 /// time being now
-pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
+///
+/// Returns [`None`] if the input date is unrecognized.
+pub fn parse(input: &str) -> Option<NaiveDateTime> {
     parse_with_default_time(input, Local::now().naive_local().time())
 }
 
@@ -220,12 +220,12 @@ fn test_parse() {
 fn test_malformed() {
     let input = "Hello World";
     let date = parse(input);
-    assert!(date.is_err());
+    assert!(date.is_none());
 }
 
 #[test]
 fn test_empty() {
     let input = "";
     let date = parse(input);
-    assert!(date.is_err());
+    assert!(date.is_none());
 }

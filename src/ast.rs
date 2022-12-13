@@ -1,16 +1,12 @@
 use chrono::{
-    Local,
-    NaiveTime as ChronoTime,
-    NaiveDate as ChronoDate,
-    Datelike,
-    NaiveDateTime as ChronoDateTime,
-    Duration as ChronoDuration,
-    Weekday as ChronoWeekday
+    Datelike, Duration as ChronoDuration, Local, NaiveDate as ChronoDate,
+    NaiveDateTime as ChronoDateTime, NaiveTime as ChronoTime, Weekday as ChronoWeekday,
 };
 
 use crate::lexer::Lexeme;
 
 #[derive(Debug, Eq, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 /// Root of the Abstract Syntax Tree, represents a fully parsed DateTime
 pub enum DateTime {
     /// Standard date and time
@@ -22,7 +18,7 @@ pub enum DateTime {
     /// A duration before the current datetime
     Ago(Duration),
     /// The current datetime
-    Now
+    Now,
 }
 
 impl DateTime {
@@ -31,15 +27,14 @@ impl DateTime {
         let mut tokens = 0;
         if l.get(tokens) == Some(&Lexeme::Now) {
             tokens += 1;
-            return Some((Self::Now, tokens))
+            return Some((Self::Now, tokens));
         }
 
         tokens = 0;
         if let Some((dur, t)) = Duration::parse(&l[tokens..]) {
             tokens += t;
 
-            if Some(&Lexeme::After) == l.get(tokens)
-            || Some(&Lexeme::From) == l.get(tokens) {
+            if Some(&Lexeme::After) == l.get(tokens) || Some(&Lexeme::From) == l.get(tokens) {
                 tokens += 1;
 
                 if let Some((datetime, t)) = DateTime::parse(&l[tokens..]) {
@@ -76,17 +71,17 @@ impl DateTime {
     }
 
     /// Convert a parsed DateTime to chrono's NaiveDateTime
-    pub fn to_chrono(&self, default: ChronoTime) -> ChronoDateTime {
-        match self {
+    pub fn to_chrono(&self, default: ChronoTime) -> Option<ChronoDateTime> {
+        Some(match self {
             DateTime::Now => Local::now().naive_local(),
             DateTime::DateTime(date, time) => {
-                let date = date.to_chrono();
-                let time = time.to_chrono(default);
+                let date = date.to_chrono()?;
+                let time = time.to_chrono(default)?;
 
                 ChronoDateTime::new(date, time)
             }
             DateTime::After(dur, date) => {
-                let mut date = date.to_chrono(default);
+                let mut date = date.to_chrono(default)?;
 
                 if dur.convertable() {
                     date + dur.to_chrono()
@@ -97,18 +92,16 @@ impl DateTime {
                                 date = date.with_month(1).unwrap();
                                 date.with_year(date.year() + 1).unwrap()
                             } else {
-                                date.with_month(date.month()+dur.num()).unwrap()
+                                date.with_month(date.month() + dur.num()).unwrap()
                             }
                         }
-                        Unit::Year => {
-                            date.with_year(date.year()+dur.num() as i32).unwrap()
-                        }
-                        _ => unreachable!()
+                        Unit::Year => date.with_year(date.year() + dur.num() as i32).unwrap(),
+                        _ => unreachable!(),
                     }
                 }
             }
             DateTime::Before(dur, date) => {
-                let mut date = date.to_chrono(default);
+                let mut date = date.to_chrono(default)?;
 
                 if dur.convertable() {
                     date - dur.to_chrono()
@@ -117,15 +110,13 @@ impl DateTime {
                         Unit::Month => {
                             if date.month() == 1 {
                                 date = date.with_month(12).unwrap();
-                                date.with_year(date.year() - 1 as i32).unwrap()
+                                date.with_year(date.year() - 1).unwrap()
                             } else {
-                                date.with_month(date.month()-dur.num()).unwrap()
+                                date.with_month(date.month() - dur.num()).unwrap()
                             }
                         }
-                        Unit::Year => {
-                            date.with_year(date.year()-dur.num() as i32).unwrap()
-                        }
-                        _ => unreachable!()
+                        Unit::Year => date.with_year(date.year() - dur.num() as i32).unwrap(),
+                        _ => unreachable!(),
                     }
                 }
             }
@@ -139,19 +130,17 @@ impl DateTime {
                         Unit::Month => {
                             if date.month() == 1 {
                                 date = date.with_month(12).unwrap();
-                                date.with_year(date.year() - 1 as i32).unwrap()
+                                date.with_year(date.year() - 1).unwrap()
                             } else {
-                                date.with_month(date.month()-dur.num()).unwrap()
+                                date.with_month(date.month() - dur.num()).unwrap()
                             }
                         }
-                        Unit::Year => {
-                            date.with_year(date.year()-dur.num() as i32).unwrap()
-                        }
-                        _ => unreachable!()
+                        Unit::Year => date.with_year(date.year() - dur.num() as i32).unwrap(),
+                        _ => unreachable!(),
                     }
                 }
             }
-        }
+        })
     }
 }
 
@@ -166,7 +155,7 @@ pub enum Date {
     Weekday(Weekday),
     Today,
     Tomorrow,
-    Yesterday
+    Yesterday,
 }
 
 impl Date {
@@ -217,7 +206,7 @@ impl Date {
                 tokens += t;
                 return Some((Self::Relative(relspec, weekday), tokens));
             }
-        } else if let Some((weekday,t)) = Weekday::parse(&l[tokens..]) {
+        } else if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
             tokens += t;
             return Some((Self::Weekday(weekday), tokens));
         } else if let Some((month, t)) = Num::parse(&l[tokens..]) {
@@ -239,7 +228,6 @@ impl Date {
                         } else {
                             return Some((Self::MonthNumDay(month, day), tokens));
                         }
-
                     }
                 }
             }
@@ -248,8 +236,8 @@ impl Date {
         None
     }
 
-    fn to_chrono(&self) -> ChronoDate {
-        match self {
+    fn to_chrono(&self) -> Option<ChronoDate> {
+        Some(match self {
             Date::Today => Local::now().naive_local().date(),
             Date::Yesterday => {
                 let today = Local::now().naive_local().date();
@@ -261,12 +249,12 @@ impl Date {
             }
             Date::MonthNumDay(month, day) => {
                 let today = Local::now().naive_local();
-                ChronoDate::from_ymd(today.year(), *month, *day)
+                ChronoDate::from_ymd_opt(today.year(), *month, *day)?
             }
             Date::MonthNumDayYear(month, day, year) => {
                 let curr = Local::now().naive_local().year() as u32;
                 let year = if *year < 100 {
-                    if curr+10 < 2000+*year {
+                    if curr + 10 < 2000 + *year {
                         1900 + *year
                     } else {
                         2000 + *year
@@ -275,15 +263,15 @@ impl Date {
                     *year
                 };
 
-                ChronoDate::from_ymd(year as i32, *month, *day)
+                ChronoDate::from_ymd_opt(year as i32, *month, *day)?
             }
             Date::MonthDay(month, day) => {
                 let today = Local::now().naive_local();
                 let month = *month as u32;
-                ChronoDate::from_ymd(today.year(), month, *day)
+                ChronoDate::from_ymd_opt(today.year(), month, *day)?
             }
             Date::MonthDayYear(month, day, year) => {
-                ChronoDate::from_ymd(*year as i32, *month as u32, *day)
+                ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day)?
             }
             Date::Relative(relspec, weekday) => {
                 let weekday = weekday.to_chrono();
@@ -313,7 +301,7 @@ impl Date {
 
                 date
             }
-        }
+        })
     }
 }
 
@@ -321,7 +309,7 @@ impl Date {
 pub enum RelativeSpecifier {
     This,
     Next,
-    Last
+    Last,
 }
 
 impl RelativeSpecifier {
@@ -330,7 +318,7 @@ impl RelativeSpecifier {
             Some(Lexeme::This) => Some(Self::This),
             Some(Lexeme::Next) => Some(Self::Next),
             Some(Lexeme::Last) => Some(Self::Last),
-            _ => None
+            _ => None,
         };
 
         res.map(|e| (e, 1))
@@ -345,7 +333,7 @@ pub enum Weekday {
     Thursday,
     Friday,
     Saturday,
-    Sunday
+    Sunday,
 }
 
 impl Weekday {
@@ -358,7 +346,7 @@ impl Weekday {
             Some(Lexeme::Thursday) => Some(Self::Thursday),
             Some(Lexeme::Friday) => Some(Self::Friday),
             Some(Lexeme::Saturday) => Some(Self::Saturday),
-            _ => None
+            _ => None,
         };
 
         res.map(|e| (e, 1))
@@ -372,7 +360,7 @@ impl Weekday {
             Weekday::Thursday => ChronoWeekday::Thu,
             Weekday::Friday => ChronoWeekday::Fri,
             Weekday::Saturday => ChronoWeekday::Sat,
-            Weekday::Sunday => ChronoWeekday::Sun
+            Weekday::Sunday => ChronoWeekday::Sun,
         }
     }
 }
@@ -390,7 +378,7 @@ pub enum Month {
     September = 9,
     October = 10,
     November = 11,
-    December = 12
+    December = 12,
 }
 
 impl Month {
@@ -408,7 +396,7 @@ impl Month {
             Some(Lexeme::October) => Some(Self::October),
             Some(Lexeme::November) => Some(Self::November),
             Some(Lexeme::December) => Some(Self::December),
-            _ => None
+            _ => None,
         };
 
         res.map(|e| (e, 1))
@@ -420,7 +408,7 @@ pub enum Time {
     HourMin(u32, u32),
     HourMinAM(u32, u32),
     HourMinPM(u32, u32),
-    Empty
+    Empty,
 }
 
 impl Time {
@@ -451,18 +439,12 @@ impl Time {
         Some((Self::Empty, tokens))
     }
 
-    fn to_chrono(&self, default: ChronoTime) -> ChronoTime {
+    fn to_chrono(&self, default: ChronoTime) -> Option<ChronoTime> {
         match *self {
-            Time::Empty => default,
-            Time::HourMin(hour, min) => {
-                ChronoTime::from_hms(hour, min, 0)
-            }
-            Time::HourMinAM(hour, min) => {
-                ChronoTime::from_hms(hour, min, 0)
-            }
-            Time::HourMinPM(hour, min) => {
-                ChronoTime::from_hms(hour+12, min, 0)
-            }
+            Time::Empty => Some(default),
+            Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0),
+            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour, min, 0),
+            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour + 12, min, 0),
         }
     }
 }
@@ -471,7 +453,7 @@ impl Time {
 pub enum Article {
     A,
     An,
-    The
+    The,
 }
 
 impl Article {
@@ -480,16 +462,15 @@ impl Article {
             Some(Lexeme::A) => Some((Self::A, 1)),
             Some(Lexeme::An) => Some((Self::An, 1)),
             Some(Lexeme::The) => Some((Self::The, 1)),
-            _ => None
+            _ => None,
         }
     }
 }
 
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum Duration {
     Article(Unit),
-    Specific(u32, Unit)
+    Specific(u32, Unit),
 }
 
 impl Duration {
@@ -519,21 +500,20 @@ impl Duration {
     fn unit(&self) -> &Unit {
         match self {
             Duration::Article(u) => u,
-            Duration::Specific(_, u) => u
+            Duration::Specific(_, u) => u,
         }
     }
 
     fn num(&self) -> u32 {
         match *self {
             Duration::Article(_) => 1,
-            Duration::Specific(num, _) => num
+            Duration::Specific(num, _) => num,
         }
     }
 
     fn convertable(&self) -> bool {
         let unit = self.unit();
-        unit != &Unit::Month &&
-        unit != &Unit::Year
+        unit != &Unit::Month && unit != &Unit::Year
     }
 
     fn to_chrono(&self) -> ChronoDuration {
@@ -545,7 +525,7 @@ impl Duration {
             Unit::Week => ChronoDuration::weeks(num as i64),
             Unit::Hour => ChronoDuration::hours(num as i64),
             Unit::Minute => ChronoDuration::minutes(num as i64),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -557,7 +537,7 @@ pub enum Unit {
     Hour,
     Minute,
     Month,
-    Year
+    Year,
 }
 
 impl Unit {
@@ -569,10 +549,9 @@ impl Unit {
             Some(Lexeme::Year) => Some((Unit::Year, 1)),
             Some(Lexeme::Minute) => Some((Unit::Minute, 1)),
             Some(Lexeme::Hour) => Some((Unit::Hour, 1)),
-            _ => None
+            _ => None,
         }
     }
-
 }
 
 struct Ones;
@@ -589,7 +568,7 @@ impl Ones {
             Some(Lexeme::Seven) => Some(7),
             Some(Lexeme::Eight) => Some(8),
             Some(Lexeme::Nine) => Some(9),
-            _ => None
+            _ => None,
         };
 
         if res.is_none() {
@@ -618,7 +597,7 @@ impl Teens {
             Some(Lexeme::Seventeen) => Some((17, 1)),
             Some(Lexeme::Eighteen) => Some((18, 1)),
             Some(Lexeme::Nineteen) => Some((19, 1)),
-            _ => None
+            _ => None,
         };
 
         if res.is_none() {
@@ -633,7 +612,6 @@ impl Teens {
     }
 }
 
-
 struct Tens;
 impl Tens {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
@@ -646,7 +624,7 @@ impl Tens {
             Some(Lexeme::Seventy) => Some((70, 1)),
             Some(Lexeme::Eighty) => Some((80, 1)),
             Some(Lexeme::Ninety) => Some((90, 1)),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -665,7 +643,7 @@ impl NumDouble {
 
             let (ones, t) = Ones::parse(&l[tokens..]).unwrap_or((0, 0));
             tokens += t;
-            return Some((tens + ones, tokens))
+            return Some((tens + ones, tokens));
         }
 
         tokens = 0;
@@ -705,14 +683,16 @@ impl NumTriple {
                 tokens += 1;
 
                 let required = Some(&Lexeme::And) == l.get(tokens);
-                if required { tokens += 1; }
+                if required {
+                    tokens += 1;
+                }
                 let double = NumDouble::parse(&l[tokens..]);
 
                 if !required || double.is_some() {
                     let (double, t) = double.unwrap_or((0, 0));
                     tokens += t;
 
-                    return Some((ones*100+double, tokens));
+                    return Some((ones * 100 + double, tokens));
                 }
             }
         }
@@ -722,14 +702,16 @@ impl NumTriple {
             tokens += 1;
 
             let required = Some(&Lexeme::And) == l.get(tokens);
-            if required { tokens += 1; }
+            if required {
+                tokens += 1;
+            }
             let double = NumDouble::parse(&l[tokens..]);
 
             if !required || double.is_some() {
                 let (double, t) = double.unwrap_or((0, 0));
                 tokens += t;
 
-                return Some((100+double, tokens));
+                return Some((100 + double, tokens));
             }
         }
 
@@ -758,7 +740,7 @@ impl NumTripleUnit {
             Some(Lexeme::Thousand) => Some((1000, 1)),
             Some(Lexeme::Million) => Some((1000000, 1)),
             Some(Lexeme::Billion) => Some((1000000000, 1)),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -777,14 +759,16 @@ impl Num {
                 tokens += t;
 
                 let required = Some(&Lexeme::And) == l.get(tokens);
-                if required { tokens += 1; }    // Consume and
+                if required {
+                    tokens += 1;
+                } // Consume and
                 let num = Num::parse(&l[tokens..]);
 
                 if !required || num.is_some() {
                     let (num, t) = num.unwrap_or((0, 0));
                     tokens += t;
 
-                    return Some((triple*unit+num, tokens));
+                    return Some((triple * unit + num, tokens));
                 }
             }
         }
@@ -795,7 +779,9 @@ impl Num {
             tokens += t;
 
             let required = Some(&Lexeme::And) == l.get(tokens);
-            if required { tokens += 1; }    // Consume and
+            if required {
+                tokens += 1;
+            } // Consume and
             let num = Num::parse(&l[tokens..]);
 
             if num.is_some() || !required {
@@ -810,7 +796,7 @@ impl Num {
         tokens = 0;
         if let Some((num, t)) = NumTriple::parse(&l[tokens..]) {
             tokens += t;
-            return Some((num, tokens))
+            return Some((num, tokens));
         }
 
         tokens = 0;
@@ -825,7 +811,6 @@ impl Num {
         None
     }
 }
-
 
 #[test]
 fn test_ones() {
@@ -862,7 +847,7 @@ fn test_complex_triple_num() {
         Lexeme::And,
         Lexeme::Thirty,
         Lexeme::Dash,
-        Lexeme::Five
+        Lexeme::Five,
     ];
     let (num, t) = NumTriple::parse(lexemes.as_slice()).unwrap();
 
@@ -880,7 +865,7 @@ fn test_complex_num() {
         Lexeme::Thirty,
         Lexeme::Thousand,
         Lexeme::And,
-        Lexeme::Ten
+        Lexeme::Ten,
     ];
     let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
 
@@ -899,10 +884,10 @@ fn test_simple_date_time() {
         Lexeme::Num(5),
         Lexeme::Colon,
         Lexeme::Num(27),
-        Lexeme::PM
+        Lexeme::PM,
     ];
-    let (date,t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 7);
     assert_eq!(date.year(), 2022);
@@ -928,11 +913,11 @@ fn test_complex_relative_datetime() {
         Lexeme::Comma,
         Lexeme::Num(5),
         Lexeme::Colon,
-        Lexeme::Num(20)
+        Lexeme::Num(20),
     ];
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 14);
     assert_eq!(date.year(), today.year());
@@ -946,7 +931,7 @@ fn test_datetime_now() {
 
     let lexemes = vec![Lexeme::Now];
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     let now = Local::now().naive_local();
     assert_eq!(t, 1);
@@ -973,13 +958,13 @@ fn test_malformed_after() {
 fn test_datetime_ago() {
     let lexemes = vec![Lexeme::A, Lexeme::Day, Lexeme::Ago];
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     let today = Local::now().naive_local().date();
     assert_eq!(t, 3);
     assert_eq!(date.year(), today.year());
     assert_eq!(date.month(), today.month());
-    assert_eq!(date.day(), today.day() -1);
+    assert_eq!(date.day(), today.day() - 1);
 }
 
 #[test]
@@ -998,13 +983,14 @@ fn test_teens() {
 
 #[test]
 fn test_article_before() {
-    let (date, t) = DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let (date, t) =
+        DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
     let today = Local::now().naive_local().date();
     assert_eq!(t, 4);
     assert_eq!(date.year(), today.year());
     assert_eq!(date.month(), today.month());
-    assert_eq!(date.day(), today.day()-1);
+    assert_eq!(date.day(), today.day() - 1);
 }
 
 #[test]
@@ -1014,12 +1000,12 @@ fn test_after_december() {
         Lexeme::Month,
         Lexeme::After,
         Lexeme::December,
-        Lexeme::Num(5)
+        Lexeme::Num(5),
     ];
 
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 5);
     assert_eq!(date.year(), today.year() + 1);
@@ -1034,18 +1020,17 @@ fn test_month_before_january() {
         Lexeme::Month,
         Lexeme::Before,
         Lexeme::January,
-        Lexeme::Num(5)
+        Lexeme::Num(5),
     ];
 
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 5);
     assert_eq!(date.year(), today.year() - 1);
     assert_eq!(date.month(), 12);
     assert_eq!(date.day(), 5);
-
 }
 
 #[test]
@@ -1055,12 +1040,12 @@ fn test_month_after() {
         Lexeme::Month,
         Lexeme::After,
         Lexeme::October,
-        Lexeme::Num(5)
+        Lexeme::Num(5),
     ];
 
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 5);
     assert_eq!(date.year(), today.year());
@@ -1075,18 +1060,17 @@ fn test_year_after() {
         Lexeme::Year,
         Lexeme::After,
         Lexeme::October,
-        Lexeme::Num(5)
+        Lexeme::Num(5),
     ];
 
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year()+1);
+    assert_eq!(date.year(), today.year() + 1);
     assert_eq!(date.month(), 10);
     assert_eq!(date.day(), 5);
-
 }
 
 #[test]
@@ -1096,18 +1080,17 @@ fn test_month_before() {
         Lexeme::Month,
         Lexeme::Before,
         Lexeme::October,
-        Lexeme::Num(5)
+        Lexeme::Num(5),
     ];
 
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 5);
     assert_eq!(date.year(), today.year());
     assert_eq!(date.month(), 9);
     assert_eq!(date.day(), 5);
-
 }
 
 #[test]
@@ -1117,16 +1100,15 @@ fn test_year_before() {
         Lexeme::Year,
         Lexeme::Before,
         Lexeme::October,
-        Lexeme::Num(5)
+        Lexeme::Num(5),
     ];
 
     let today = Local::now().naive_local().date();
     let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time());
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year()-1);
+    assert_eq!(date.year(), today.year() - 1);
     assert_eq!(date.month(), 10);
     assert_eq!(date.day(), 5);
-
 }
