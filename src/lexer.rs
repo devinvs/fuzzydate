@@ -217,7 +217,7 @@ impl Lexeme {
                 *stack = String::with_capacity(10);
                 Ok(())
             } else {
-                Err(crate::Error::UnexpectedToken(stack.clone()))
+                Err(crate::Error::UnableToParse)
             }
         };
 
