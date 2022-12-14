@@ -5,7 +5,12 @@ version = "0.1.5"
 edition = "2021"
 authors = ["Devin Vander Stelt"]
 keywords = ["date", "time", "parse", "fuzzy", "string"]
-categories = ["accessibility", "date-and-time", "parser-implementations", "text-processing"]
+categories = [
+    "accessibility",
+    "date-and-time",
+    "parser-implementations",
+    "text-processing",
+]
 license = "MIT"
 repository = "https://github.com/DevinVS/fuzzydate"
 
@@ -14,3 +19,4 @@ repository = "https://github.com/DevinVS/fuzzydate"
 [dependencies]
 chrono = "0.4"
 lazy_static = "1.4"
+thiserror = "1.0"

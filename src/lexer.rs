@@ -188,29 +188,28 @@ pub enum Lexeme {
     Thousand,
     Million,
     Billion,
-    Last
+    Last,
 }
 
 impl Lexeme {
     /// Lex a string into a list of Lexemes
-    pub fn lex_line(s: String) -> Result<Vec<Lexeme>, String> {
-
+    pub fn lex_line(s: String) -> Result<Vec<Lexeme>, crate::Error> {
         // Convert s to lowercase to remove case sensitive behaviour
         let s = s.to_lowercase();
 
-        let mut lexemes = Vec::new();   // List of Lexemes
-        let mut chars = s.chars();      // Character iterator
+        let mut lexemes = Vec::new(); // List of Lexemes
+        let chars = s.chars(); // Character iterator
         let mut stack = String::with_capacity(10);
 
         // Convenience closure which takes a reference to our stack
         // and our lexemes, searches our keyword map for the stack,
         // tries to convert the stack into a integer, adds the appropriate
         // lexemes if successfully, and zeroes out the stack
-        let push_lexeme = |stack: &mut String, ls: &mut Vec<Lexeme>| -> Result<(), String> {
+        let push_lexeme = |stack: &mut String, ls: &mut Vec<Lexeme>| {
             if stack.is_empty() {
                 Ok(())
             } else if let Some(l) = KEYWORDS.get(stack.as_str()) {
-                ls.push(l.clone());
+                ls.push(*l);
                 *stack = String::with_capacity(10);
                 Ok(())
             } else if let Ok(num) = stack.parse::<u32>() {
@@ -218,12 +217,12 @@ impl Lexeme {
                 *stack = String::with_capacity(10);
                 Ok(())
             } else {
-                Err(format!("Unexpected Token: {}", stack))
+                Err(crate::Error::UnableToParse)
             }
         };
 
         // While we have characters left in the string
-        while let Some(c) = chars.next() {
+        for c in chars {
             // Whitespace always separates lexemes, push whatever we have
             // on the stack and continue to the next character
             if c.is_whitespace() {
@@ -253,7 +252,7 @@ impl Lexeme {
                     lexemes.push(Lexeme::Dash);
                 }
                 // Else just add the character to our stack
-                _ => stack.push(c)
+                _ => stack.push(c),
             }
         }
 
@@ -267,32 +266,38 @@ impl Lexeme {
 #[test]
 fn test_simple_date() {
     let input = "5/2/2022".to_string();
-    assert_eq!(Ok(vec![
-        Lexeme::Num(5),
-        Lexeme::Slash,
-        Lexeme::Num(2),
-        Lexeme::Slash,
-        Lexeme::Num(2022)
-    ]), Lexeme::lex_line(input));
+    assert_eq!(
+        Ok(vec![
+            Lexeme::Num(5),
+            Lexeme::Slash,
+            Lexeme::Num(2),
+            Lexeme::Slash,
+            Lexeme::Num(2022)
+        ]),
+        Lexeme::lex_line(input)
+    );
 }
 
 #[test]
 fn test_complex_relative_date_time() {
     let input = "fifty-five days from january 1, 2010 5:00".to_string();
-    assert_eq!(Ok(vec![
-        Lexeme::Fifty,
-        Lexeme::Dash,
-        Lexeme::Five,
-        Lexeme::Day,
-        Lexeme::From,
-        Lexeme::January,
-        Lexeme::Num(1),
-        Lexeme::Comma,
-        Lexeme::Num(2010),
-        Lexeme::Num(5),
-        Lexeme::Colon,
-        Lexeme::Num(0)
-    ]), Lexeme::lex_line(input));
+    assert_eq!(
+        Ok(vec![
+            Lexeme::Fifty,
+            Lexeme::Dash,
+            Lexeme::Five,
+            Lexeme::Day,
+            Lexeme::From,
+            Lexeme::January,
+            Lexeme::Num(1),
+            Lexeme::Comma,
+            Lexeme::Num(2010),
+            Lexeme::Num(5),
+            Lexeme::Colon,
+            Lexeme::Num(0)
+        ]),
+        Lexeme::lex_line(input)
+    );
 }
 
 #[test]

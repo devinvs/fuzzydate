@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! # FuzzyDate: Date Input for Humans
 //!
 //! A Parser which can turn a variety of input strings into a DateTime
@@ -180,28 +181,38 @@
 //!          | NUM      ; number literal less than 10
 //! ```
 
-mod lexer;
 mod ast;
+mod lexer;
 
-use chrono::{NaiveDateTime, NaiveTime, Local};
+use chrono::{Local, NaiveDateTime, NaiveTime};
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum Error {
+    #[error("Invalid date")]
+    /// The date is invalid,
+    /// e.g. `"31st of February"`, `"December 32nd"`, `"32/13/2019"`
+    Invalid,
+    #[error("Unable to parse date")]
+    /// The date _may_ be valid, but the parser was unable to parse it,
+    /// e.g. `"tomorrow at at 5pm"`, `"Frriday"`
+    UnableToParse,
+}
+// so that we don't have to change this in both places
+// doesn't show up in the docs
+type Output = Result<NaiveDateTime, Error>;
 
 /// Parse an input string into a chrono NaiveDateTime, using the default
 /// values from the specified default value where not specified
-pub fn parse_with_default_time(input: &str, default: NaiveTime) -> Result<NaiveDateTime, String> {
+pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> Output {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let tree = ast::DateTime::parse(lexemes.as_slice());
+    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::UnableToParse)?;
 
-    if tree.is_none() {
-        return Err("Unrecognized Date Format".into());
-    }
-
-    let date = tree.unwrap().0.to_chrono(default);
-    Ok(date)
+    tree.to_chrono(default).ok_or(Error::Invalid)
 }
 
 /// Parse an input string into a chrono NaiveDateTime with the default
 /// time being now
-pub fn parse(input: &str) -> Result<NaiveDateTime, String> {
+pub fn parse(input: impl Into<String>) -> Output {
     parse_with_default_time(input, Local::now().naive_local().time())
 }
 
