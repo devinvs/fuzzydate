@@ -8,7 +8,7 @@
 //! Put this in your `Cargo.toml`:
 //!
 //! ```toml
-//! fuzzydate = "0.1"
+//! fuzzydate = "0.2"
 //! ```
 //!
 //! ## Example
