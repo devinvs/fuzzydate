@@ -81,64 +81,16 @@ impl DateTime {
                 ChronoDateTime::new(date, time)
             }
             DateTime::After(dur, date) => {
-                let mut date = date.to_chrono(default)?;
-
-                if dur.convertable() {
-                    date + dur.to_chrono()
-                } else {
-                    match dur.unit() {
-                        Unit::Month => {
-                            if date.month() == 12 {
-                                date = date.with_month(1).unwrap();
-                                date.with_year(date.year() + 1).unwrap()
-                            } else {
-                                date.with_month(date.month() + dur.num()).unwrap()
-                            }
-                        }
-                        Unit::Year => date.with_year(date.year() + dur.num() as i32).unwrap(),
-                        _ => unreachable!(),
-                    }
-                }
+                let date = date.to_chrono(default)?;
+                dur.after(date)
             }
             DateTime::Before(dur, date) => {
-                let mut date = date.to_chrono(default)?;
-
-                if dur.convertable() {
-                    date - dur.to_chrono()
-                } else {
-                    match dur.unit() {
-                        Unit::Month => {
-                            if date.month() == 1 {
-                                date = date.with_month(12).unwrap();
-                                date.with_year(date.year() - 1).unwrap()
-                            } else {
-                                date.with_month(date.month() - dur.num()).unwrap()
-                            }
-                        }
-                        Unit::Year => date.with_year(date.year() - dur.num() as i32).unwrap(),
-                        _ => unreachable!(),
-                    }
-                }
+                let date = date.to_chrono(default)?;
+                dur.before(date)
             }
             DateTime::Ago(dur) => {
-                let mut date = Local::now().naive_local();
-
-                if dur.convertable() {
-                    date - dur.to_chrono()
-                } else {
-                    match dur.unit() {
-                        Unit::Month => {
-                            if date.month() == 1 {
-                                date = date.with_month(12).unwrap();
-                                date.with_year(date.year() - 1).unwrap()
-                            } else {
-                                date.with_month(date.month() - dur.num()).unwrap()
-                            }
-                        }
-                        Unit::Year => date.with_year(date.year() - dur.num() as i32).unwrap(),
-                        _ => unreachable!(),
-                    }
-                }
+                let date = Local::now().naive_local();
+                dur.before(date)
             }
         })
     }
@@ -471,10 +423,32 @@ impl Article {
 pub enum Duration {
     Article(Unit),
     Specific(u32, Unit),
+    Concat(Box<Duration>, Box<Duration>)
 }
 
 impl Duration {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
+        let mut tokens = 0;
+        if let Some((d, t)) = Duration::parse_concrete(l) {
+            tokens += t;
+
+            if let Some(Lexeme::And) = l.get(tokens) {
+                tokens += 1;
+
+                if let Some((dur2, t)) = Duration::parse(&l[tokens..]) {
+                    tokens += t;
+
+                    return Some((Duration::Concat(Box::new(d), Box::new(dur2)), tokens));
+                }
+            }
+
+            return Some((d, t));
+        }
+
+        None
+    }
+
+    fn parse_concrete(l: &[Lexeme]) -> Option<(Self, usize)> {
         let mut tokens = 0;
 
         if let Some((num, t)) = Num::parse(&l[tokens..]) {
@@ -501,6 +475,7 @@ impl Duration {
         match self {
             Duration::Article(u) => u,
             Duration::Specific(_, u) => u,
+            _ => unimplemented!()
         }
     }
 
@@ -508,15 +483,24 @@ impl Duration {
         match *self {
             Duration::Article(_) => 1,
             Duration::Specific(num, _) => num,
+            _ => unimplemented!()
         }
     }
 
     fn convertable(&self) -> bool {
+        if let Duration::Concat(dur1, dur2) = self {
+            return dur1.convertable() && dur2.convertable();
+        }
+
         let unit = self.unit();
         unit != &Unit::Month && unit != &Unit::Year
     }
 
     fn to_chrono(&self) -> ChronoDuration {
+        if let Duration::Concat(dur1, dur2) = self {
+            return dur1.to_chrono() + dur2.to_chrono();
+        }
+
         let unit = self.unit();
         let num = self.num();
 
@@ -527,6 +511,58 @@ impl Duration {
             Unit::Minute => ChronoDuration::minutes(num as i64),
             _ => unreachable!(),
         }
+    }
+
+    fn after(&self, date: ChronoDateTime) -> ChronoDateTime {
+        if let Duration::Concat(dur1, dur2) = self {
+            return dur2.after(dur1.after(date));
+        }
+
+        if self.convertable() {
+            date + self.to_chrono()
+        } else {
+
+            match self.unit() {
+                Unit::Month => {
+                    if date.month() == 12 {
+                        date.with_month(1).unwrap()
+                            .with_year(date.year() + 1).unwrap()
+                    } else {
+                        date.with_month(date.month()+self.num()).unwrap()
+                    }
+                }
+                Unit::Year => {
+                    date.with_year(date.year()+self.num() as i32).unwrap()
+                }
+                _ => unreachable!()
+            }
+        }
+    }
+
+    fn before(&self, date: ChronoDateTime) -> ChronoDateTime {
+        if let Duration::Concat(dur1, dur2) = self {
+            return dur2.before(dur1.before(date));
+        }
+
+        if self.convertable() {
+            date - self.to_chrono()
+        } else {
+            match self.unit() {
+                Unit::Month => {
+                    if date.month() == 1 {
+                        date.with_month(12).unwrap()
+                            .with_year(date.year() - 1 as i32).unwrap()
+                    } else {
+                        date.with_month(date.month()-self.num()).unwrap()
+                    }
+                }
+                Unit::Year => {
+                    date.with_year(date.year()-self.num() as i32).unwrap()
+                }
+                _ => unreachable!()
+            }
+        }
+
     }
 }
 

@@ -98,6 +98,7 @@
 //!
 //! <duration> ::= <num> <unit>
 //!              | <article> <unit>
+//!              | <duration> and <duration>
 //!
 //! <time> ::= <num>:<num>
 //!          | <num>:<num> am
