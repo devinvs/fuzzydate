@@ -71,8 +71,8 @@ impl DateTime {
     }
 
     /// Convert a parsed DateTime to chrono's NaiveDateTime
-    pub fn to_chrono(&self, default: ChronoTime) -> Option<ChronoDateTime> {
-        Some(match self {
+    pub fn to_chrono(&self, default: ChronoTime) -> Result<ChronoDateTime, crate::Error> {
+        Ok(match self {
             DateTime::Now => Local::now().naive_local(),
             DateTime::DateTime(date, time) => {
                 let date = date.to_chrono()?;
@@ -188,8 +188,8 @@ impl Date {
         None
     }
 
-    fn to_chrono(&self) -> Option<ChronoDate> {
-        Some(match self {
+    fn to_chrono(&self) -> Result<ChronoDate, crate::Error> {
+        Ok(match self {
             Date::Today => Local::now().naive_local().date(),
             Date::Yesterday => {
                 let today = Local::now().naive_local().date();
@@ -201,7 +201,10 @@ impl Date {
             }
             Date::MonthNumDay(month, day) => {
                 let today = Local::now().naive_local();
-                ChronoDate::from_ymd_opt(today.year(), *month, *day)?
+                ChronoDate::from_ymd_opt(today.year(), *month, *day)
+                    .ok_or(crate::Error::InvalidDate(
+                        format!("Invalid month-day: {month}-{day}")
+                    ))?
             }
             Date::MonthNumDayYear(month, day, year) => {
                 let curr = Local::now().naive_local().year() as u32;
@@ -215,15 +218,24 @@ impl Date {
                     *year
                 };
 
-                ChronoDate::from_ymd_opt(year as i32, *month, *day)?
+                ChronoDate::from_ymd_opt(year as i32, *month, *day)
+                    .ok_or(crate::Error::InvalidDate(
+                        format!("Invalid year-month-day: {year}-{month}-{day}")
+                    ))?
             }
             Date::MonthDay(month, day) => {
                 let today = Local::now().naive_local();
                 let month = *month as u32;
-                ChronoDate::from_ymd_opt(today.year(), month, *day)?
+                ChronoDate::from_ymd_opt(today.year(), month, *day)
+                    .ok_or(crate::Error::InvalidDate(
+                        format!("Invalid month-day: {month}-{day}")
+                    ))?
             }
             Date::MonthDayYear(month, day, year) => {
-                ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day)?
+                ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day)
+                    .ok_or(crate::Error::InvalidDate(
+                        format!("Invalid year-month-day: {}-{}-{}", *year, *month as u32, *day)
+                    ))?
             }
             Date::Relative(relspec, weekday) => {
                 let weekday = weekday.to_chrono();
@@ -391,12 +403,21 @@ impl Time {
         Some((Self::Empty, tokens))
     }
 
-    fn to_chrono(&self, default: ChronoTime) -> Option<ChronoTime> {
+    fn to_chrono(&self, default: ChronoTime) -> Result<ChronoTime, crate::Error> {
         match *self {
-            Time::Empty => Some(default),
-            Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0),
-            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour, min, 0),
-            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour + 12, min, 0),
+            Time::Empty => Ok(default),
+            Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0)
+                .ok_or(crate::Error::InvalidDate(
+                    format!("Invalid time: {hour}:{min}")
+                )),
+            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour, min, 0)
+                .ok_or(crate::Error::InvalidDate(
+                    format!("Invalid time: {hour}:{min} am")
+                )),
+            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour + 12, min, 0)
+                .ok_or(crate::Error::InvalidDate(
+                    format!("Invalid time: {hour}:{min} pm")
+                )),
         }
     }
 }

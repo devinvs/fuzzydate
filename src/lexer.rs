@@ -214,10 +214,10 @@ impl Lexeme {
                 Ok(())
             } else if let Ok(num) = stack.parse::<u32>() {
                 ls.push(Lexeme::Num(num));
-                *stack = String::with_capacity(10);
+                stack.clear();
                 Ok(())
             } else {
-                Err(crate::Error::UnableToParse)
+                Err(crate::Error::UnrecognizedToken(stack.clone()))
             }
         };
 

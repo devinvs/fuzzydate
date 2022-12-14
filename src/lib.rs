@@ -192,11 +192,14 @@ pub enum Error {
     #[error("Invalid date")]
     /// The date is invalid,
     /// e.g. `"31st of February"`, `"December 32nd"`, `"32/13/2019"`
-    Invalid,
+    InvalidDate(String),
+    #[error("Unrecognized Token while lexing")]
+    /// The lexer found a token that it doesn't recognize
+    UnrecognizedToken(String),
     #[error("Unable to parse date")]
     /// The date _may_ be valid, but the parser was unable to parse it,
-    /// e.g. `"tomorrow at at 5pm"`, `"Frriday"`
-    UnableToParse,
+    /// e.g. `"tomorrow at at 5pm"`
+    ParseError,
 }
 // so that we don't have to change this in both places
 // doesn't show up in the docs
@@ -206,9 +209,9 @@ type Output = Result<NaiveDateTime, Error>;
 /// values from the specified default value where not specified
 pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> Output {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::UnableToParse)?;
+    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
-    tree.to_chrono(default).ok_or(Error::Invalid)
+    tree.to_chrono(default)
 }
 
 /// Parse an input string into a chrono NaiveDateTime with the default
