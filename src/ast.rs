@@ -11,6 +11,8 @@ use crate::lexer::Lexeme;
 pub enum DateTime {
     /// Standard date and time
     DateTime(Date, Time),
+    /// Backwards
+    TimeDate(Time, Date),
     /// A duration after a datetime
     After(Duration, Box<DateTime>),
     /// A duration before a datetime
@@ -67,6 +69,19 @@ impl DateTime {
             }
         }
 
+        tokens = 0;
+        if let Some((time, t)) = Time::parse(&l[tokens..]) {
+            tokens += t;
+            if l.get(tokens) == Some(&Lexeme::Comma) {
+                tokens += 1;
+            }
+
+            if let Some((date, t)) = Date::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::TimeDate(time, date), tokens));
+            }
+        }
+
         None
     }
 
@@ -75,6 +90,12 @@ impl DateTime {
         Ok(match self {
             DateTime::Now => Local::now().naive_local(),
             DateTime::DateTime(date, time) => {
+                let date = date.to_chrono()?;
+                let time = time.to_chrono(default)?;
+
+                ChronoDateTime::new(date, time)
+            }
+            DateTime::TimeDate(time, date) => {
                 let date = date.to_chrono()?;
                 let time = time.to_chrono(default)?;
 
