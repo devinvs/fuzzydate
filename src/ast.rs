@@ -159,10 +159,6 @@ impl Date {
             let (day, t) = Num::parse(&l[tokens..])?;
             tokens += t;
 
-            if l.get(tokens) == Some(&Lexeme::Comma) {
-                tokens += 1;
-            }
-
             if let Some((year, t)) = Num::parse(&l[tokens..]) {
                 tokens += t;
                 return Some((Self::MonthDayYear(month, day, year), tokens));
