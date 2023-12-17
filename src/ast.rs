@@ -182,24 +182,37 @@ impl Date {
         } else if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
             tokens += t;
             return Some((Self::Weekday(weekday), tokens));
-        } else if let Some((month, t)) = Num::parse(&l[tokens..]) {
+        } else if let Some((num1, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
             if let Some(delim) = l.get(tokens) {
-                if delim == &Lexeme::Slash || delim == &Lexeme::Dash {
+                if delim == &Lexeme::Slash || delim == &Lexeme::Dash || delim == &Lexeme::Dot {
                     // Consume slash or dash
                     tokens += 1;
 
-                    if let Some((day, t)) = Num::parse(&l[tokens..]) {
+                    if let Some((num2, t)) = Num::parse(&l[tokens..]) {
                         tokens += t;
                         if l.get(tokens)? == delim {
                             // Consume slash or dash
                             tokens += 1;
 
-                            let (year, t) = Num::parse(&l[tokens..])?;
+                            let (num3, t) = Num::parse(&l[tokens..])?;
                             tokens += t;
-                            return Some((Self::MonthNumDayYear(month, day, year), tokens));
+
+                            // If delim is dot use DMY, otherwise MDY
+                            if delim == &Lexeme::Dot {
+                                return Some((Self::MonthNumDayYear(num2, num1, num3), tokens));
+                            }
+                            else {
+                                return Some((Self::MonthNumDayYear(num1, num2, num3), tokens));
+                            }
                         } else {
-                            return Some((Self::MonthNumDay(month, day), tokens));
+                            // If delim is dot use DMY, otherwise MDY
+                            if delim == &Lexeme::Dot {
+                                return Some((Self::MonthNumDay(num2, num1), tokens));
+                            }
+                            else {
+                                return Some((Self::MonthNumDay(num1, num2), tokens));
+                            }
                         }
                     }
                 }
