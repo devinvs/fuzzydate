@@ -1190,3 +1190,53 @@ fn test_year_before() {
     assert_eq!(date.month(), 10);
     assert_eq!(date.day(), 5);
 }
+
+#[test]
+fn test_month_literals_with_time_and_year() {
+    use chrono::Timelike;
+
+    let lexemes = vec![
+        Lexeme::February,
+        Lexeme::Num(16),
+        Lexeme::Num(2022),
+        Lexeme::Comma,
+        Lexeme::Num(5),
+        Lexeme::Colon,
+        Lexeme::Num(27),
+        Lexeme::PM,
+    ];
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+
+    assert_eq!(t, 8);
+    assert_eq!(date.year(), 2022);
+    assert_eq!(date.month(), 2);
+    assert_eq!(date.day(), 16);
+    assert_eq!(date.hour(), 17);
+    assert_eq!(date.minute(), 27);
+}
+
+#[test]
+fn test_month_literals_with_time_and_no_year() {
+    use chrono::Timelike;
+
+    let lexemes = vec![
+        Lexeme::February,
+        Lexeme::Num(16),
+        Lexeme::Comma,
+        Lexeme::Num(5),
+        Lexeme::Colon,
+        Lexeme::Num(27),
+        Lexeme::PM,
+    ];
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+    let current_year = Local::now().naive_local().year();
+
+    assert_eq!(t, 7);
+    assert_eq!(date.year(), current_year);
+    assert_eq!(date.month(), 2);
+    assert_eq!(date.day(), 16);
+    assert_eq!(date.hour(), 17);
+    assert_eq!(date.minute(), 27);
+}
