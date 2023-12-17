@@ -120,6 +120,7 @@ pub enum Lexeme {
     And,
     Comma,
     Colon,
+    Dot,
     After,
     Num(u32),
     This,
