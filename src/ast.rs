@@ -197,16 +197,14 @@ impl Date {
                             // If delim is dot use DMY, otherwise MDY
                             if delim == &Lexeme::Dot {
                                 return Some((Self::MonthNumDayYear(num2, num1, num3), tokens));
-                            }
-                            else {
+                            } else {
                                 return Some((Self::MonthNumDayYear(num1, num2, num3), tokens));
                             }
                         } else {
                             // If delim is dot use DMY, otherwise MDY
                             if delim == &Lexeme::Dot {
                                 return Some((Self::MonthNumDay(num2, num1), tokens));
-                            }
-                            else {
+                            } else {
                                 return Some((Self::MonthNumDay(num1, num2), tokens));
                             }
                         }
@@ -231,10 +229,9 @@ impl Date {
             }
             Date::MonthNumDay(month, day) => {
                 let today = Local::now().naive_local();
-                ChronoDate::from_ymd_opt(today.year(), *month, *day)
-                    .ok_or(crate::Error::InvalidDate(
-                        format!("Invalid month-day: {month}-{day}")
-                    ))?
+                ChronoDate::from_ymd_opt(today.year(), *month, *day).ok_or(
+                    crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
+                )?
             }
             Date::MonthNumDayYear(month, day, year) => {
                 let curr = Local::now().naive_local().year() as u32;
@@ -248,24 +245,26 @@ impl Date {
                     *year
                 };
 
-                ChronoDate::from_ymd_opt(year as i32, *month, *day)
-                    .ok_or(crate::Error::InvalidDate(
-                        format!("Invalid year-month-day: {year}-{month}-{day}")
-                    ))?
+                ChronoDate::from_ymd_opt(year as i32, *month, *day).ok_or(
+                    crate::Error::InvalidDate(format!(
+                        "Invalid year-month-day: {year}-{month}-{day}"
+                    )),
+                )?
             }
             Date::MonthDay(month, day) => {
                 let today = Local::now().naive_local();
                 let month = *month as u32;
-                ChronoDate::from_ymd_opt(today.year(), month, *day)
-                    .ok_or(crate::Error::InvalidDate(
-                        format!("Invalid month-day: {month}-{day}")
-                    ))?
+                ChronoDate::from_ymd_opt(today.year(), month, *day).ok_or(
+                    crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
+                )?
             }
             Date::MonthDayYear(month, day, year) => {
-                ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day)
-                    .ok_or(crate::Error::InvalidDate(
-                        format!("Invalid year-month-day: {}-{}-{}", *year, *month as u32, *day)
-                    ))?
+                ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day).ok_or(
+                    crate::Error::InvalidDate(format!(
+                        "Invalid year-month-day: {}-{}-{}",
+                        *year, *month as u32, *day
+                    )),
+                )?
             }
             Date::Relative(relspec, weekday) => {
                 let weekday = weekday.to_chrono();
@@ -436,18 +435,15 @@ impl Time {
     fn to_chrono(&self, default: ChronoTime) -> Result<ChronoTime, crate::Error> {
         match *self {
             Time::Empty => Ok(default),
-            Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0)
-                .ok_or(crate::Error::InvalidDate(
-                    format!("Invalid time: {hour}:{min}")
-                )),
-            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour, min, 0)
-                .ok_or(crate::Error::InvalidDate(
-                    format!("Invalid time: {hour}:{min} am")
-                )),
-            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour + 12, min, 0)
-                .ok_or(crate::Error::InvalidDate(
-                    format!("Invalid time: {hour}:{min} pm")
-                )),
+            Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0).ok_or(
+                crate::Error::InvalidDate(format!("Invalid time: {hour}:{min}")),
+            ),
+            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour, min, 0).ok_or(
+                crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} am")),
+            ),
+            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour + 12, min, 0).ok_or(
+                crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} pm")),
+            ),
         }
     }
 }
@@ -474,7 +470,7 @@ impl Article {
 pub enum Duration {
     Article(Unit),
     Specific(u32, Unit),
-    Concat(Box<Duration>, Box<Duration>)
+    Concat(Box<Duration>, Box<Duration>),
 }
 
 impl Duration {
@@ -526,7 +522,7 @@ impl Duration {
         match self {
             Duration::Article(u) => u,
             Duration::Specific(_, u) => u,
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
 
@@ -534,7 +530,7 @@ impl Duration {
         match *self {
             Duration::Article(_) => 1,
             Duration::Specific(num, _) => num,
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
 
@@ -572,20 +568,19 @@ impl Duration {
         if self.convertable() {
             date + self.to_chrono()
         } else {
-
             match self.unit() {
                 Unit::Month => {
                     if date.month() == 12 {
-                        date.with_month(1).unwrap()
-                            .with_year(date.year() + 1).unwrap()
+                        date.with_month(1)
+                            .unwrap()
+                            .with_year(date.year() + 1)
+                            .unwrap()
                     } else {
-                        date.with_month(date.month()+self.num()).unwrap()
+                        date.with_month(date.month() + self.num()).unwrap()
                     }
                 }
-                Unit::Year => {
-                    date.with_year(date.year()+self.num() as i32).unwrap()
-                }
-                _ => unreachable!()
+                Unit::Year => date.with_year(date.year() + self.num() as i32).unwrap(),
+                _ => unreachable!(),
             }
         }
     }
@@ -601,19 +596,18 @@ impl Duration {
             match self.unit() {
                 Unit::Month => {
                     if date.month() == 1 {
-                        date.with_month(12).unwrap()
-                            .with_year(date.year() - 1 as i32).unwrap()
+                        date.with_month(12)
+                            .unwrap()
+                            .with_year(date.year() - 1 as i32)
+                            .unwrap()
                     } else {
-                        date.with_month(date.month()-self.num()).unwrap()
+                        date.with_month(date.month() - self.num()).unwrap()
                     }
                 }
-                Unit::Year => {
-                    date.with_year(date.year()-self.num() as i32).unwrap()
-                }
-                _ => unreachable!()
+                Unit::Year => date.with_year(date.year() - self.num() as i32).unwrap(),
+                _ => unreachable!(),
             }
         }
-
     }
 }
 
@@ -1002,14 +996,18 @@ fn test_complex_relative_datetime() {
         Lexeme::Colon,
         Lexeme::Num(20),
     ];
+
+    use chrono::naive::Days;
     let today = Local::now().naive_local().date();
+    let real_date = today + Days::new(7 - 2 + 1 + 1);
+
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
     let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
 
     assert_eq!(t, 14);
-    assert_eq!(date.year(), today.year());
-    assert_eq!(date.month(), today.month());
-    assert_eq!(date.day(), today.day() + 7 - 2 + 1 + 1);
+    assert_eq!(date.year(), real_date.year());
+    assert_eq!(date.month(), real_date.month());
+    assert_eq!(date.day(), real_date.day());
 }
 
 #[test]
@@ -1214,10 +1212,10 @@ fn test_month_literals_with_time_and_year() {
         Lexeme::Num(27),
         Lexeme::PM,
     ];
-  
+
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
     let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
-  
+
     assert_eq!(t, 8);
     assert_eq!(date.year(), 2022);
     assert_eq!(date.month(), 2);
@@ -1235,10 +1233,10 @@ fn test_slash_separated_date() {
         Lexeme::Slash,
         Lexeme::Num(2023),
     ];
-    
+
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
     let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
-  
+
     assert_eq!(t, 5);
     assert_eq!(date.year(), 2023);
     assert_eq!(date.month(), 5);
