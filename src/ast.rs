@@ -178,24 +178,37 @@ impl Date {
         } else if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
             tokens += t;
             return Some((Self::Weekday(weekday), tokens));
-        } else if let Some((month, t)) = Num::parse(&l[tokens..]) {
+        } else if let Some((num1, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
             if let Some(delim) = l.get(tokens) {
-                if delim == &Lexeme::Slash || delim == &Lexeme::Dash {
+                if delim == &Lexeme::Slash || delim == &Lexeme::Dash || delim == &Lexeme::Dot {
                     // Consume slash or dash
                     tokens += 1;
 
-                    if let Some((day, t)) = Num::parse(&l[tokens..]) {
+                    if let Some((num2, t)) = Num::parse(&l[tokens..]) {
                         tokens += t;
                         if l.get(tokens)? == delim {
                             // Consume slash or dash
                             tokens += 1;
 
-                            let (year, t) = Num::parse(&l[tokens..])?;
+                            let (num3, t) = Num::parse(&l[tokens..])?;
                             tokens += t;
-                            return Some((Self::MonthNumDayYear(month, day, year), tokens));
+
+                            // If delim is dot use DMY, otherwise MDY
+                            if delim == &Lexeme::Dot {
+                                return Some((Self::MonthNumDayYear(num2, num1, num3), tokens));
+                            }
+                            else {
+                                return Some((Self::MonthNumDayYear(num1, num2, num3), tokens));
+                            }
                         } else {
-                            return Some((Self::MonthNumDay(month, day), tokens));
+                            // If delim is dot use DMY, otherwise MDY
+                            if delim == &Lexeme::Dot {
+                                return Some((Self::MonthNumDay(num2, num1), tokens));
+                            }
+                            else {
+                                return Some((Self::MonthNumDay(num1, num2), tokens));
+                            }
                         }
                     }
                 }
@@ -1201,15 +1214,35 @@ fn test_month_literals_with_time_and_year() {
         Lexeme::Num(27),
         Lexeme::PM,
     ];
+  
     let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
     let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
-
+  
     assert_eq!(t, 8);
     assert_eq!(date.year(), 2022);
     assert_eq!(date.month(), 2);
     assert_eq!(date.day(), 16);
     assert_eq!(date.hour(), 17);
     assert_eq!(date.minute(), 27);
+}
+
+#[test]
+fn test_slash_separated_date() {
+    let lexemes = vec![
+        Lexeme::Num(5),
+        Lexeme::Slash,
+        Lexeme::Num(12),
+        Lexeme::Slash,
+        Lexeme::Num(2023),
+    ];
+    
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+  
+    assert_eq!(t, 5);
+    assert_eq!(date.year(), 2023);
+    assert_eq!(date.month(), 5);
+    assert_eq!(date.day(), 12);
 }
 
 #[test]
@@ -1235,4 +1268,85 @@ fn test_month_literals_with_time_and_no_year() {
     assert_eq!(date.day(), 16);
     assert_eq!(date.hour(), 17);
     assert_eq!(date.minute(), 27);
+}
+
+#[test]
+fn test_slash_separated_invalid_month() {
+    let lexemes = vec![
+        Lexeme::Num(13),
+        Lexeme::Slash,
+        Lexeme::Num(12),
+        Lexeme::Slash,
+        Lexeme::Num(2023),
+    ];
+    let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time());
+
+    assert!(date.is_err());
+}
+
+#[test]
+fn test_dash_separated_date() {
+    let lexemes = vec![
+        Lexeme::Num(5),
+        Lexeme::Dash,
+        Lexeme::Num(12),
+        Lexeme::Dash,
+        Lexeme::Num(2023),
+    ];
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+
+    assert_eq!(t, 5);
+    assert_eq!(date.year(), 2023);
+    assert_eq!(date.month(), 5);
+    assert_eq!(date.day(), 12);
+}
+
+#[test]
+fn test_dash_separated_invalid_month() {
+    let lexemes = vec![
+        Lexeme::Num(13),
+        Lexeme::Dash,
+        Lexeme::Num(12),
+        Lexeme::Dash,
+        Lexeme::Num(2023),
+    ];
+    let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time());
+
+    assert!(date.is_err());
+}
+
+#[test]
+fn test_dot_separated_date() {
+    let lexemes = vec![
+        Lexeme::Num(19),
+        Lexeme::Dot,
+        Lexeme::Num(12),
+        Lexeme::Dot,
+        Lexeme::Num(2023),
+    ];
+    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+
+    assert_eq!(t, 5);
+    assert_eq!(date.year(), 2023);
+    assert_eq!(date.month(), 12);
+    assert_eq!(date.day(), 19);
+}
+
+#[test]
+fn test_dot_separated_date_invalid_month() {
+    let lexemes = vec![
+        Lexeme::Num(19),
+        Lexeme::Dot,
+        Lexeme::Num(13),
+        Lexeme::Dot,
+        Lexeme::Num(2023),
+    ];
+    let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time());
+
+    assert!(date.is_err());
 }
