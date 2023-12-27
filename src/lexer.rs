@@ -120,6 +120,7 @@ pub enum Lexeme {
     And,
     Comma,
     Colon,
+    Dot,
     After,
     Num(u32),
     This,
@@ -250,6 +251,11 @@ impl Lexeme {
                 '-' => {
                     push_lexeme(&mut stack, &mut lexemes)?;
                     lexemes.push(Lexeme::Dash);
+                }
+                // Dot separates lexemes, push stack and add dash
+                '.' => {
+                    push_lexeme(&mut stack, &mut lexemes)?;
+                    lexemes.push(Lexeme::Dot);
                 }
                 // Else just add the character to our stack
                 _ => stack.push(c),
