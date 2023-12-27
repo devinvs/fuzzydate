@@ -49,7 +49,6 @@
 //!          | <num> - <num> - <num>
 //!          | <num> . <num> . <num>
 //!          | <month> <num> <num>
-//!          | <month> <num> , <num>
 //!          | <relative_specifier> <unit>
 //!          | <relative_specifier> <weekday>
 //!          | <weekday>
