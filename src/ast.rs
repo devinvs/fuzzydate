@@ -886,489 +886,510 @@ impl Num {
     }
 }
 
-#[test]
-fn test_ones() {
-    let lexemes = vec![Lexeme::Five];
-    let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
+#[cfg(test)]
+mod tests {
+    use chrono::{NaiveDateTime as ChronoDateTime, TimeZone};
+    use test_case::test_case;
 
-    assert_eq!(ones, 5);
-    assert_eq!(t, 1);
+    use crate::ast::*;
+    use crate::lexer::Lexeme;
+
+    #[test]
+    fn test_ones() {
+        let lexemes = vec![Lexeme::Five];
+        let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
+
+        assert_eq!(ones, 5);
+        assert_eq!(t, 1);
+    }
+
+    #[test]
+    fn test_ones_literal() {
+        let lexemes = vec![Lexeme::Num(5)];
+        let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
+
+        assert_eq!(ones, 5);
+        assert_eq!(t, 1);
+    }
+
+    #[test]
+    fn test_simple_num() {
+        let lexemes = vec![Lexeme::Num(5)];
+        let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
+
+        assert_eq!(num, 5);
+        assert_eq!(t, 1);
+    }
+
+    #[test]
+    fn test_complex_triple_num() {
+        let lexemes = vec![
+            Lexeme::Num(2),
+            Lexeme::Hundred,
+            Lexeme::And,
+            Lexeme::Thirty,
+            Lexeme::Dash,
+            Lexeme::Five,
+        ];
+        let (num, t) = NumTriple::parse(lexemes.as_slice()).unwrap();
+
+        assert_eq!(num, 235);
+        assert_eq!(t, 6);
+    }
+
+    #[test]
+    fn test_complex_num() {
+        let lexemes = vec![
+            Lexeme::Two,
+            Lexeme::Hundred,
+            Lexeme::Five,
+            Lexeme::Million,
+            Lexeme::Thirty,
+            Lexeme::Thousand,
+            Lexeme::And,
+            Lexeme::Ten,
+        ];
+        let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
+
+        assert_eq!(t, 8);
+        assert_eq!(num, 205_030_010);
+    }
+
+    #[test]
+    fn test_simple_date_time() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Num(5),
+            Lexeme::Colon,
+            Lexeme::Num(27),
+            Lexeme::PM,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 7);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 17);
+        assert_eq!(date.minute(), 27);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_complex_relative_datetime(now: Option<ChronoDateTime>) {
+        let lexemes = vec![
+            Lexeme::A,
+            Lexeme::Week,
+            Lexeme::After,
+            Lexeme::Two,
+            Lexeme::Day,
+            Lexeme::Before,
+            Lexeme::The,
+            Lexeme::Day,
+            Lexeme::After,
+            Lexeme::Tomorrow,
+            Lexeme::Comma,
+            Lexeme::Num(5),
+            Lexeme::Colon,
+            Lexeme::Num(20),
+        ];
+
+        use chrono::naive::Days;
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let real_date = today + Days::new(7 - 2 + 1 + 1);
+
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 14);
+        assert_eq!(date.year(), real_date.year());
+        assert_eq!(date.month(), real_date.month());
+        assert_eq!(date.day(), real_date.day());
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_datetime_now(now: Option<ChronoDateTime>) {
+        use chrono::Timelike;
+
+        let lexemes = vec![Lexeme::Now];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        let now = now.unwrap_or(Local::now().naive_local());
+        assert_eq!(t, 1);
+        assert_eq!(date.year(), now.year());
+        assert_eq!(date.month(), now.month());
+        assert_eq!(date.day(), now.day());
+        assert_eq!(date.hour(), now.hour());
+        assert_eq!(date.minute(), now.minute());
+    }
+
+    #[test]
+    fn test_malformed_article_after() {
+        let lexemes = vec![Lexeme::A, Lexeme::Day, Lexeme::After, Lexeme::Colon];
+        assert!(DateTime::parse(lexemes.as_slice()).is_none());
+    }
+
+    #[test]
+    fn test_malformed_after() {
+        let lexemes = vec![Lexeme::Num(5), Lexeme::Day, Lexeme::After, Lexeme::Colon];
+        assert!(DateTime::parse(lexemes.as_slice()).is_none());
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_datetime_ago(now: Option<ChronoDateTime>) {
+        let lexemes = vec![Lexeme::A, Lexeme::Day, Lexeme::Ago];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        assert_eq!(t, 3);
+        assert_eq!(date.year(), today.year());
+        assert_eq!(date.month(), today.month());
+        assert_eq!(date.day(), today.day() - 1);
+    }
+
+    #[test]
+    fn test_teens() {
+        assert_eq!((10, 1), Teens::parse(&[Lexeme::Ten]).unwrap());
+        assert_eq!((11, 1), Teens::parse(&[Lexeme::Eleven]).unwrap());
+        assert_eq!((12, 1), Teens::parse(&[Lexeme::Twelve]).unwrap());
+        assert_eq!((13, 1), Teens::parse(&[Lexeme::Thirteen]).unwrap());
+        assert_eq!((14, 1), Teens::parse(&[Lexeme::Fourteen]).unwrap());
+        assert_eq!((15, 1), Teens::parse(&[Lexeme::Fifteen]).unwrap());
+        assert_eq!((16, 1), Teens::parse(&[Lexeme::Sixteen]).unwrap());
+        assert_eq!((17, 1), Teens::parse(&[Lexeme::Seventeen]).unwrap());
+        assert_eq!((18, 1), Teens::parse(&[Lexeme::Eighteen]).unwrap());
+        assert_eq!((19, 1), Teens::parse(&[Lexeme::Nineteen]).unwrap());
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_article_before(now: Option<ChronoDateTime>) {
+        let (date, t) =
+            DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        assert_eq!(t, 4);
+        assert_eq!(date.year(), today.year());
+        assert_eq!(date.month(), today.month());
+        assert_eq!(date.day(), today.day() - 1);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_after_december(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Month,
+            Lexeme::After,
+            Lexeme::December,
+            Lexeme::Num(5),
+        ];
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year() + 1);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_month_before_january(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Month,
+            Lexeme::Before,
+            Lexeme::January,
+            Lexeme::Num(5),
+        ];
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year() - 1);
+        assert_eq!(date.month(), 12);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_month_after(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Month,
+            Lexeme::After,
+            Lexeme::October,
+            Lexeme::Num(5),
+        ];
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year());
+        assert_eq!(date.month(), 11);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_year_after(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Year,
+            Lexeme::After,
+            Lexeme::October,
+            Lexeme::Num(5),
+        ];
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year() + 1);
+        assert_eq!(date.month(), 10);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_month_before(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Month,
+            Lexeme::Before,
+            Lexeme::October,
+            Lexeme::Num(5),
+        ];
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year());
+        assert_eq!(date.month(), 9);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_year_before(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Year,
+            Lexeme::Before,
+            Lexeme::October,
+            Lexeme::Num(5),
+        ];
+
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year() - 1);
+        assert_eq!(date.month(), 10);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test]
+    fn test_month_literals_with_time_and_year() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Comma,
+            Lexeme::Num(5),
+            Lexeme::Colon,
+            Lexeme::Num(27),
+            Lexeme::PM,
+        ];
+
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 8);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 17);
+        assert_eq!(date.minute(), 27);
+    }
+
+    #[test]
+    fn test_slash_separated_date() {
+        let lexemes = vec![
+            Lexeme::Num(5),
+            Lexeme::Slash,
+            Lexeme::Num(12),
+            Lexeme::Slash,
+            Lexeme::Num(2023),
+        ];
+
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
+    }
+
+    #[test]
+    fn test_month_literals_with_time_and_no_year() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Comma,
+            Lexeme::Num(5),
+            Lexeme::Colon,
+            Lexeme::Num(27),
+            Lexeme::PM,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+        let current_year = Local::now().naive_local().year();
+
+        assert_eq!(t, 7);
+        assert_eq!(date.year(), current_year);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 17);
+        assert_eq!(date.minute(), 27);
+    }
+
+    #[test]
+    fn test_slash_separated_invalid_month() {
+        let lexemes = vec![
+            Lexeme::Num(13),
+            Lexeme::Slash,
+            Lexeme::Num(12),
+            Lexeme::Slash,
+            Lexeme::Num(2023),
+        ];
+        let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now().naive_local().time(), None);
+
+        assert!(date.is_err());
+    }
+
+    #[test]
+    fn test_dash_separated_date() {
+        let lexemes = vec![
+            Lexeme::Num(5),
+            Lexeme::Dash,
+            Lexeme::Num(12),
+            Lexeme::Dash,
+            Lexeme::Num(2023),
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
+    }
+
+    #[test]
+    fn test_dash_separated_invalid_month() {
+        let lexemes = vec![
+            Lexeme::Num(13),
+            Lexeme::Dash,
+            Lexeme::Num(12),
+            Lexeme::Dash,
+            Lexeme::Num(2023),
+        ];
+        let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now().naive_local().time(), None);
+
+        assert!(date.is_err());
+    }
+
+    #[test]
+    fn test_dot_separated_date() {
+        let lexemes = vec![
+            Lexeme::Num(19),
+            Lexeme::Dot,
+            Lexeme::Num(12),
+            Lexeme::Dot,
+            Lexeme::Num(2023),
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 12);
+        assert_eq!(date.day(), 19);
+    }
+
+    #[test]
+    fn test_dot_separated_date_invalid_month() {
+        let lexemes = vec![
+            Lexeme::Num(19),
+            Lexeme::Dot,
+            Lexeme::Num(13),
+            Lexeme::Dot,
+            Lexeme::Num(2023),
+        ];
+        let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now().naive_local().time(), None);
+
+        assert!(date.is_err());
+    }
 }
-
-#[test]
-fn test_ones_literal() {
-    let lexemes = vec![Lexeme::Num(5)];
-    let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
-
-    assert_eq!(ones, 5);
-    assert_eq!(t, 1);
-}
-
-#[test]
-fn test_simple_num() {
-    let lexemes = vec![Lexeme::Num(5)];
-    let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
-
-    assert_eq!(num, 5);
-    assert_eq!(t, 1);
-}
-
-#[test]
-fn test_complex_triple_num() {
-    let lexemes = vec![
-        Lexeme::Num(2),
-        Lexeme::Hundred,
-        Lexeme::And,
-        Lexeme::Thirty,
-        Lexeme::Dash,
-        Lexeme::Five,
-    ];
-    let (num, t) = NumTriple::parse(lexemes.as_slice()).unwrap();
-
-    assert_eq!(num, 235);
-    assert_eq!(t, 6);
-}
-
-#[test]
-fn test_complex_num() {
-    let lexemes = vec![
-        Lexeme::Two,
-        Lexeme::Hundred,
-        Lexeme::Five,
-        Lexeme::Million,
-        Lexeme::Thirty,
-        Lexeme::Thousand,
-        Lexeme::And,
-        Lexeme::Ten,
-    ];
-    let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
-
-    assert_eq!(t, 8);
-    assert_eq!(num, 205_030_010);
-}
-
-#[test]
-fn test_simple_date_time() {
-    use chrono::Timelike;
-
-    let lexemes = vec![
-        Lexeme::February,
-        Lexeme::Num(16),
-        Lexeme::Num(2022),
-        Lexeme::Num(5),
-        Lexeme::Colon,
-        Lexeme::Num(27),
-        Lexeme::PM,
-    ];
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 7);
-    assert_eq!(date.year(), 2022);
-    assert_eq!(date.month(), 2);
-    assert_eq!(date.day(), 16);
-    assert_eq!(date.hour(), 17);
-    assert_eq!(date.minute(), 27);
-}
-
-#[test]
-fn test_complex_relative_datetime() {
-    let lexemes = vec![
-        Lexeme::A,
-        Lexeme::Week,
-        Lexeme::After,
-        Lexeme::Two,
-        Lexeme::Day,
-        Lexeme::Before,
-        Lexeme::The,
-        Lexeme::Day,
-        Lexeme::After,
-        Lexeme::Tomorrow,
-        Lexeme::Comma,
-        Lexeme::Num(5),
-        Lexeme::Colon,
-        Lexeme::Num(20),
-    ];
-
-    use chrono::naive::Days;
-    let today = Local::now().naive_local().date();
-    let real_date = today + Days::new(7 - 2 + 1 + 1);
-
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 14);
-    assert_eq!(date.year(), real_date.year());
-    assert_eq!(date.month(), real_date.month());
-    assert_eq!(date.day(), real_date.day());
-}
-
-#[test]
-fn test_datetime_now() {
-    use chrono::Timelike;
-
-    let lexemes = vec![Lexeme::Now];
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    let now = Local::now().naive_local();
-    assert_eq!(t, 1);
-    assert_eq!(date.year(), now.year());
-    assert_eq!(date.month(), now.month());
-    assert_eq!(date.day(), now.day());
-    assert_eq!(date.hour(), now.hour());
-    assert_eq!(date.minute(), now.minute());
-}
-
-#[test]
-fn test_malformed_article_after() {
-    let lexemes = vec![Lexeme::A, Lexeme::Day, Lexeme::After, Lexeme::Colon];
-    assert!(DateTime::parse(lexemes.as_slice()).is_none());
-}
-
-#[test]
-fn test_malformed_after() {
-    let lexemes = vec![Lexeme::Num(5), Lexeme::Day, Lexeme::After, Lexeme::Colon];
-    assert!(DateTime::parse(lexemes.as_slice()).is_none());
-}
-
-#[test]
-fn test_datetime_ago() {
-    let lexemes = vec![Lexeme::A, Lexeme::Day, Lexeme::Ago];
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    let today = Local::now().naive_local().date();
-    assert_eq!(t, 3);
-    assert_eq!(date.year(), today.year());
-    assert_eq!(date.month(), today.month());
-    assert_eq!(date.day(), today.day() - 1);
-}
-
-#[test]
-fn test_teens() {
-    assert_eq!((10, 1), Teens::parse(&[Lexeme::Ten]).unwrap());
-    assert_eq!((11, 1), Teens::parse(&[Lexeme::Eleven]).unwrap());
-    assert_eq!((12, 1), Teens::parse(&[Lexeme::Twelve]).unwrap());
-    assert_eq!((13, 1), Teens::parse(&[Lexeme::Thirteen]).unwrap());
-    assert_eq!((14, 1), Teens::parse(&[Lexeme::Fourteen]).unwrap());
-    assert_eq!((15, 1), Teens::parse(&[Lexeme::Fifteen]).unwrap());
-    assert_eq!((16, 1), Teens::parse(&[Lexeme::Sixteen]).unwrap());
-    assert_eq!((17, 1), Teens::parse(&[Lexeme::Seventeen]).unwrap());
-    assert_eq!((18, 1), Teens::parse(&[Lexeme::Eighteen]).unwrap());
-    assert_eq!((19, 1), Teens::parse(&[Lexeme::Nineteen]).unwrap());
-}
-
-#[test]
-fn test_article_before() {
-    let (date, t) =
-        DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-    let today = Local::now().naive_local().date();
-    assert_eq!(t, 4);
-    assert_eq!(date.year(), today.year());
-    assert_eq!(date.month(), today.month());
-    assert_eq!(date.day(), today.day() - 1);
-}
-
-#[test]
-fn test_after_december() {
-    let l = vec![
-        Lexeme::A,
-        Lexeme::Month,
-        Lexeme::After,
-        Lexeme::December,
-        Lexeme::Num(5),
-    ];
-
-    let today = Local::now().naive_local().date();
-    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year() + 1);
-    assert_eq!(date.month(), 1);
-    assert_eq!(date.day(), 5);
-}
-
-#[test]
-fn test_month_before_january() {
-    let l = vec![
-        Lexeme::A,
-        Lexeme::Month,
-        Lexeme::Before,
-        Lexeme::January,
-        Lexeme::Num(5),
-    ];
-
-    let today = Local::now().naive_local().date();
-    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year() - 1);
-    assert_eq!(date.month(), 12);
-    assert_eq!(date.day(), 5);
-}
-
-#[test]
-fn test_month_after() {
-    let l = vec![
-        Lexeme::A,
-        Lexeme::Month,
-        Lexeme::After,
-        Lexeme::October,
-        Lexeme::Num(5),
-    ];
-
-    let today = Local::now().naive_local().date();
-    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year());
-    assert_eq!(date.month(), 11);
-    assert_eq!(date.day(), 5);
-}
-
-#[test]
-fn test_year_after() {
-    let l = vec![
-        Lexeme::A,
-        Lexeme::Year,
-        Lexeme::After,
-        Lexeme::October,
-        Lexeme::Num(5),
-    ];
-
-    let today = Local::now().naive_local().date();
-    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year() + 1);
-    assert_eq!(date.month(), 10);
-    assert_eq!(date.day(), 5);
-}
-
-#[test]
-fn test_month_before() {
-    let l = vec![
-        Lexeme::A,
-        Lexeme::Month,
-        Lexeme::Before,
-        Lexeme::October,
-        Lexeme::Num(5),
-    ];
-
-    let today = Local::now().naive_local().date();
-    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year());
-    assert_eq!(date.month(), 9);
-    assert_eq!(date.day(), 5);
-}
-
-#[test]
-fn test_year_before() {
-    let l = vec![
-        Lexeme::A,
-        Lexeme::Year,
-        Lexeme::Before,
-        Lexeme::October,
-        Lexeme::Num(5),
-    ];
-
-    let today = Local::now().naive_local().date();
-    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), today.year() - 1);
-    assert_eq!(date.month(), 10);
-    assert_eq!(date.day(), 5);
-}
-
-#[test]
-fn test_month_literals_with_time_and_year() {
-    use chrono::Timelike;
-
-    let lexemes = vec![
-        Lexeme::February,
-        Lexeme::Num(16),
-        Lexeme::Num(2022),
-        Lexeme::Comma,
-        Lexeme::Num(5),
-        Lexeme::Colon,
-        Lexeme::Num(27),
-        Lexeme::PM,
-    ];
-
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 8);
-    assert_eq!(date.year(), 2022);
-    assert_eq!(date.month(), 2);
-    assert_eq!(date.day(), 16);
-    assert_eq!(date.hour(), 17);
-    assert_eq!(date.minute(), 27);
-}
-
-#[test]
-fn test_slash_separated_date() {
-    let lexemes = vec![
-        Lexeme::Num(5),
-        Lexeme::Slash,
-        Lexeme::Num(12),
-        Lexeme::Slash,
-        Lexeme::Num(2023),
-    ];
-
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), 2023);
-    assert_eq!(date.month(), 5);
-    assert_eq!(date.day(), 12);
-}
-
-#[test]
-fn test_month_literals_with_time_and_no_year() {
-    use chrono::Timelike;
-
-    let lexemes = vec![
-        Lexeme::February,
-        Lexeme::Num(16),
-        Lexeme::Comma,
-        Lexeme::Num(5),
-        Lexeme::Colon,
-        Lexeme::Num(27),
-        Lexeme::PM,
-    ];
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-    let current_year = Local::now().naive_local().year();
-
-    assert_eq!(t, 7);
-    assert_eq!(date.year(), current_year);
-    assert_eq!(date.month(), 2);
-    assert_eq!(date.day(), 16);
-    assert_eq!(date.hour(), 17);
-    assert_eq!(date.minute(), 27);
-}
-
-#[test]
-fn test_slash_separated_invalid_month() {
-    let lexemes = vec![
-        Lexeme::Num(13),
-        Lexeme::Slash,
-        Lexeme::Num(12),
-        Lexeme::Slash,
-        Lexeme::Num(2023),
-    ];
-    let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time(), None);
-
-    assert!(date.is_err());
-}
-
-#[test]
-fn test_dash_separated_date() {
-    let lexemes = vec![
-        Lexeme::Num(5),
-        Lexeme::Dash,
-        Lexeme::Num(12),
-        Lexeme::Dash,
-        Lexeme::Num(2023),
-    ];
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), 2023);
-    assert_eq!(date.month(), 5);
-    assert_eq!(date.day(), 12);
-}
-
-#[test]
-fn test_dash_separated_invalid_month() {
-    let lexemes = vec![
-        Lexeme::Num(13),
-        Lexeme::Dash,
-        Lexeme::Num(12),
-        Lexeme::Dash,
-        Lexeme::Num(2023),
-    ];
-    let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time(), None);
-
-    assert!(date.is_err());
-}
-
-#[test]
-fn test_dot_separated_date() {
-    let lexemes = vec![
-        Lexeme::Num(19),
-        Lexeme::Dot,
-        Lexeme::Num(12),
-        Lexeme::Dot,
-        Lexeme::Num(2023),
-    ];
-    let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date
-        .to_chrono(Local::now().naive_local().time(), None)
-        .unwrap();
-
-    assert_eq!(t, 5);
-    assert_eq!(date.year(), 2023);
-    assert_eq!(date.month(), 12);
-    assert_eq!(date.day(), 19);
-}
-
-#[test]
-fn test_dot_separated_date_invalid_month() {
-    let lexemes = vec![
-        Lexeme::Num(19),
-        Lexeme::Dot,
-        Lexeme::Num(13),
-        Lexeme::Dot,
-        Lexeme::Num(2023),
-    ];
-    let (date, _) = DateTime::parse(lexemes.as_slice()).unwrap();
-    let date = date.to_chrono(Local::now().naive_local().time(), None);
-
-    assert!(date.is_err());
