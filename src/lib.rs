@@ -211,7 +211,16 @@ pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> 
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
-    tree.to_chrono(default)
+    tree.to_chrono(default, None)
+}
+
+/// Parse an input string into a chrono NaiveDateTime, treating the default as
+/// if it was the current time.
+pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> Output {
+    let lexemes = lexer::Lexeme::lex_line(input.into())?;
+    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+
+    tree.to_chrono(default.time(), Some(default))
 }
 
 /// Parse an input string into a chrono NaiveDateTime with the default
