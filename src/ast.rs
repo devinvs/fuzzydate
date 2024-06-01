@@ -569,16 +569,9 @@ impl Duration {
             date + self.to_chrono()
         } else {
             match self.unit() {
-                Unit::Month => {
-                    if date.month() == 12 {
-                        date.with_month(1)
-                            .unwrap()
-                            .with_year(date.year() + 1)
-                            .unwrap()
-                    } else {
-                        date.with_month(date.month() + self.num()).unwrap()
-                    }
-                }
+                Unit::Month => date
+                    .checked_add_months(chrono::Months::new(self.num()))
+                    .expect("Date out of representable date range."),
                 Unit::Year => date.with_year(date.year() + self.num() as i32).unwrap(),
                 _ => unreachable!(),
             }
