@@ -594,16 +594,9 @@ impl Duration {
             date - self.to_chrono()
         } else {
             match self.unit() {
-                Unit::Month => {
-                    if date.month() == 1 {
-                        date.with_month(12)
-                            .unwrap()
-                            .with_year(date.year() - 1 as i32)
-                            .unwrap()
-                    } else {
-                        date.with_month(date.month() - self.num()).unwrap()
-                    }
-                }
+                Unit::Month => date
+                    .checked_sub_months(chrono::Months::new(self.num()))
+                    .expect("Date out of representable date range."),
                 Unit::Year => date.with_year(date.year() - self.num() as i32).unwrap(),
                 _ => unreachable!(),
             }
@@ -1176,6 +1169,48 @@ fn test_month_before() {
     assert_eq!(date.year(), today.year());
     assert_eq!(date.month(), 9);
     assert_eq!(date.day(), 5);
+}
+
+#[test]
+fn test_month_before_to_leap_day() {
+    let l = vec![
+        Lexeme::Num(3),
+        Lexeme::Month,
+        Lexeme::Before,
+        Lexeme::May,
+        Lexeme::Num(31),
+        Lexeme::Num(2024),
+    ];
+
+    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+
+    assert_eq!(t, 6);
+    assert_eq!(date.year(), 2024);
+    assert_eq!(date.month(), 2);
+    // 2024 is a leap year
+    assert_eq!(date.day(), 29);
+}
+
+#[test]
+fn test_month_before_invalid_date() {
+    let l = vec![
+        Lexeme::Num(3),
+        Lexeme::Month,
+        Lexeme::Before,
+        Lexeme::May,
+        Lexeme::Num(31),
+        Lexeme::Num(2023),
+    ];
+
+    let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+    let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+
+    assert_eq!(t, 6);
+    assert_eq!(date.year(), 2023);
+    assert_eq!(date.month(), 2);
+    // 2024 is a leap year
+    assert_eq!(date.day(), 28);
 }
 
 #[test]
