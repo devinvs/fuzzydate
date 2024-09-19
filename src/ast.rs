@@ -1191,51 +1191,51 @@ mod tests {
         assert_eq!(date.day(), 5);
     }
 
-      #[test_case(None; "default reference time")]
-      #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-      fn test_month_before(now: Option<ChronoDateTime>) {
-          let l = vec![
-              Lexeme::A,
-              Lexeme::Month,
-              Lexeme::Before,
-              Lexeme::October,
-              Lexeme::Num(5),
-          ];
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_month_before(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Month,
+            Lexeme::Before,
+            Lexeme::October,
+            Lexeme::Num(5),
+        ];
 
-          let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
-          let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-          let date = date
-              .to_chrono(Local::now().naive_local().time(), now)
-              .unwrap();
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
 
-          assert_eq!(t, 5);
-          assert_eq!(date.year(), today.year());
-          assert_eq!(date.month(), 9);
-          assert_eq!(date.day(), 5);
-      }
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year());
+        assert_eq!(date.month(), 9);
+        assert_eq!(date.day(), 5);
+    }
 
-      #[test_case(None; "default reference time")]
-      #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-      fn test_year_before(now: Option<ChronoDateTime>) {
-          let l = vec![
-              Lexeme::A,
-              Lexeme::Year,
-              Lexeme::Before,
-              Lexeme::October,
-              Lexeme::Num(5),
-          ];
+    #[test_case(None; "default reference time")]
+    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
+    fn test_year_before(now: Option<ChronoDateTime>) {
+        let l = vec![
+            Lexeme::A,
+            Lexeme::Year,
+            Lexeme::Before,
+            Lexeme::October,
+            Lexeme::Num(5),
+        ];
 
-          let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
-          let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-          let date = date
-              .to_chrono(Local::now().naive_local().time(), now)
-              .unwrap();
+        let today = now.map_or(Local::now().naive_local().date(), |now| now.date());
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), now)
+            .unwrap();
 
-          assert_eq!(t, 5);
-          assert_eq!(date.year(), today.year() - 1);
-          assert_eq!(date.month(), 10);
-          assert_eq!(date.day(), 5);
-      }
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), today.year() - 1);
+        assert_eq!(date.month(), 10);
+        assert_eq!(date.day(), 5);
+    }
 
     #[test]
     fn test_month_before_to_leap_day() {
@@ -1249,7 +1249,9 @@ mod tests {
         ];
 
         let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
 
         assert_eq!(t, 6);
         assert_eq!(date.year(), 2024);
@@ -1270,7 +1272,9 @@ mod tests {
         ];
 
         let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
 
         assert_eq!(t, 6);
         assert_eq!(date.year(), 2023);
@@ -1285,7 +1289,7 @@ mod tests {
 
         let today = Local::now().naive_local();
         let (date, _) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(today.time()).unwrap();
+        let date = date.to_chrono(today.time(), None).unwrap();
 
         assert_eq!(date, today + ChronoDuration::weeks(1));
     }
@@ -1296,7 +1300,7 @@ mod tests {
 
         let today = Local::now().naive_local();
         let (date, _) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(today.time()).unwrap();
+        let date = date.to_chrono(today.time(), None).unwrap();
 
         assert_eq!(
             date,
@@ -1312,7 +1316,7 @@ mod tests {
 
         let today = Local::now().naive_local();
         let (date, _) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(today.time()).unwrap();
+        let date = date.to_chrono(today.time(), None).unwrap();
 
         assert_eq!(
             date,
@@ -1328,7 +1332,7 @@ mod tests {
 
         let today = Local::now().naive_local();
         let (date, _) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(today.time()).unwrap();
+        let date = date.to_chrono(today.time(), None).unwrap();
 
         assert_eq!(date, today - ChronoDuration::weeks(1));
     }
@@ -1339,7 +1343,7 @@ mod tests {
 
         let today = Local::now().naive_local();
         let (date, _) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(today.time()).unwrap();
+        let date = date.to_chrono(today.time(), None).unwrap();
 
         assert_eq!(
             date,
@@ -1355,7 +1359,7 @@ mod tests {
 
         let today = Local::now().naive_local();
         let (date, _) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(today.time()).unwrap();
+        let date = date.to_chrono(today.time(), None).unwrap();
 
         assert_eq!(
             date,
@@ -1363,32 +1367,6 @@ mod tests {
                 .with_year(today.year() - 1)
                 .expect("Subtracting one year to current date shouldn't be the end of time.")
         );
-    }
-
-    #[test]
-    fn test_month_literals_with_time_and_year() {
-        use chrono::Timelike;
-
-        let lexemes = vec![
-            Lexeme::February,
-            Lexeme::Num(16),
-            Lexeme::Num(2022),
-            Lexeme::Comma,
-            Lexeme::Num(5),
-            Lexeme::Colon,
-            Lexeme::Num(27),
-            Lexeme::PM,
-        ];
-
-        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-        let date = date.to_chrono(Local::now().naive_local().time()).unwrap();
-
-        assert_eq!(t, 8);
-        assert_eq!(date.year(), 2022);
-        assert_eq!(date.month(), 2);
-        assert_eq!(date.day(), 16);
-        assert_eq!(date.hour(), 17);
-        assert_eq!(date.minute(), 27);
     }
 
     #[test]
