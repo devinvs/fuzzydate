@@ -13,11 +13,21 @@ categories = [
 ]
 license = "MIT"
 repository = "https://github.com/DevinVS/fuzzydate"
+autobin = false
 
 [dependencies]
 chrono = "0.4"
 lazy_static = "1.4"
 thiserror = "1.0"
+clap = {version = "4.5.21", features=["derive"], optional = true}
 
 [dev-dependencies]
 test-case = "3.3.1"
+
+[features]
+cli = ["dep:clap"]
+
+[[bin]]
+name = "fuzzydate"
+path = "src/main.rs"
+required-features = ["cli"]
