@@ -284,14 +284,17 @@ impl Date {
                 today
             }
             Date::UnitRelative(relspec, unit) => {
-                let today = Local::now().naive_local();
-                let mut date = today.date();
+                let mut date = today;
                 if relspec == &RelativeSpecifier::Next {
-                    date = Duration::Specific(1, unit.to_owned()).after(today).date();
+                    date = Duration::Specific(1, unit.to_owned())
+                        .after(today.into())
+                        .date();
                 }
 
                 if relspec == &RelativeSpecifier::Last {
-                    date = Duration::Specific(1, unit.to_owned()).before(today).date();
+                    date = Duration::Specific(1, unit.to_owned())
+                        .before(today.into())
+                        .date();
                 }
 
                 date
