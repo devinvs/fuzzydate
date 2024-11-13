@@ -420,6 +420,16 @@ impl Time {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
         let mut tokens = 0;
 
+        if let Some(&Lexeme::Midnight) = l.get(tokens) {
+            tokens += 1;
+            return Some((Time::HourMin(0, 0), tokens));
+        }
+
+        if let Some(&Lexeme::Noon) = l.get(tokens) {
+            tokens += 1;
+            return Some((Time::HourMin(12, 0), tokens));
+        }
+
         if let Some((hour, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
             if l.get(tokens) == Some(&Lexeme::Colon) {
