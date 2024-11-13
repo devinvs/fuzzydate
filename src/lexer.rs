@@ -98,6 +98,8 @@ lazy_static! {
         map.insert("billion", Lexeme::Billion);
         map.insert("before", Lexeme::Before);
         map.insert("ago", Lexeme::Ago);
+        map.insert("midnight", Lexeme::Midnight);
+        map.insert("noon", Lexeme::Noon);
         map.insert("a", Lexeme::A);
         map.insert("the", Lexeme::The);
 
@@ -155,6 +157,8 @@ pub enum Lexeme {
     Slash,
     Before,
     Ago,
+    Midnight,
+    Noon,
 
     // Number parsing lexemes
     Zero,
