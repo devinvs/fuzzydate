@@ -971,6 +971,52 @@ mod tests {
     }
 
     #[test]
+    fn test_noon_date_time() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Noon,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 4);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 12);
+        assert_eq!(date.minute(), 0);
+    }
+
+    #[test]
+    fn test_midnight_date_time() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Midnight,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date
+            .to_chrono(Local::now().naive_local().time(), None)
+            .unwrap();
+
+        assert_eq!(t, 4);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 0);
+        assert_eq!(date.minute(), 0);
+    }
+
+    #[test]
     fn test_simple_date_time() {
         use chrono::Timelike;
 
