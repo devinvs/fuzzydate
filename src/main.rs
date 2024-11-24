@@ -3,6 +3,7 @@ use fuzzydate::{parse, parse_relative_to, parse_with_default_time};
 
 #[derive(Parser, Debug)]
 struct Args {
+    #[arg(default_value = "today")]
     date_string: String,
 
     // TODO: handle timezones

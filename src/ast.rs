@@ -63,6 +63,10 @@ impl DateTime {
                 tokens += 1;
             }
 
+            if l.get(tokens) == Some(&Lexeme::At) {
+                tokens += 1;
+            }
+
             if let Some((time, t)) = Time::parse(&l[tokens..]) {
                 tokens += t;
                 return Some((Self::DateTime(date, time), tokens));
@@ -72,7 +76,13 @@ impl DateTime {
         tokens = 0;
         if let Some((time, t)) = Time::parse(&l[tokens..]) {
             tokens += t;
+            // TODO: does <time>, <date> introduce ambiguity where the time and date should be
+            // TODO: parsed separately?
             if l.get(tokens) == Some(&Lexeme::Comma) {
+                tokens += 1;
+            }
+
+            if l.get(tokens) == Some(&Lexeme::On) {
                 tokens += 1;
             }
 

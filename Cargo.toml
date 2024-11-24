@@ -19,13 +19,14 @@ autobin = false
 chrono = "0.4"
 lazy_static = "1.4"
 thiserror = "1.0"
-clap = {version = "4.5.21", features=["derive"], optional = true}
+clap = {version = "4.5", features=["derive"], optional = true}
+anyhow = {version = "1.0", optional = true}
 
 [dev-dependencies]
 test-case = "3.3.1"
 
 [features]
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:anyhow"]
 
 [[bin]]
 name = "fuzzydate"

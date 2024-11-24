@@ -31,7 +31,10 @@
 //! ```text
 //! <datetime> ::= <time>
 //!              | <date> <time>
+//!              | <date> at <time>
 //!              | <date> , <time>
+//!              | <time> , <date>
+//!              | <time> on <date>
 //!              | <duration> after <datetime>
 //!              | <duration> from <datetime>
 //!              | <duration> before <datetime>
@@ -103,7 +106,8 @@
 //! <time> ::= <num>:<num>
 //!          | <num>:<num> am
 //!          | <num>:<num> pm
-//!          |
+//!          | midnight
+//!          | noon
 //!
 //! <unit> ::= day
 //!          | days
