@@ -106,6 +106,9 @@
 //! <time> ::= <num>:<num>
 //!          | <num>:<num> am
 //!          | <num>:<num> pm
+//!          | <num>
+//!          | <num> am
+//!          | <num> pm
 //!          | midnight
 //!          | noon
 //!
@@ -193,11 +196,11 @@ use chrono::{Local, NaiveDateTime, NaiveTime};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
-    #[error("Invalid date")]
+    #[error("Invalid date: {0}")]
     /// The date is invalid,
     /// e.g. `"31st of February"`, `"December 32nd"`, `"32/13/2019"`
     InvalidDate(String),
-    #[error("Unrecognized Token while lexing")]
+    #[error("Unrecognized Token: {0}")]
     /// The lexer found a token that it doesn't recognize
     UnrecognizedToken(String),
     #[error("Unable to parse date")]
