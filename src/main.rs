@@ -1,3 +1,5 @@
+use std::{fmt::Display, process::exit};
+
 use clap::Parser;
 use fuzzydate::{parse, parse_relative_to, parse_with_default_time};
 
@@ -17,29 +19,38 @@ struct Args {
     relative_to: Option<String>,
 }
 
+fn unwrap_or_report<T, E: Display>(arg: Result<T, E>) -> T {
+    match arg {
+        Ok(value) => value,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            exit(1);
+        }
+    }
+}
+
 fn main() {
     let args = Args::parse();
 
     let result = match args {
-        // FIXME: report errors instead of unwrapping
         Args {
             default_time: Some(default_time),
             date_string,
             ..
         } => {
-            let default_time = parse(default_time).unwrap();
-            parse_with_default_time(date_string, default_time.time())
+            let default_time = unwrap_or_report(parse(default_time));
+            unwrap_or_report(parse_with_default_time(date_string, default_time.time()))
         }
         Args {
             relative_to: Some(relative_to),
             date_string,
             ..
         } => {
-            let relative_to = parse(relative_to).unwrap();
-            parse_relative_to(date_string, relative_to)
+            let relative_to = unwrap_or_report(parse(relative_to));
+            unwrap_or_report(parse_relative_to(date_string, relative_to))
         }
-        Args { date_string, .. } => parse(date_string),
+        Args { date_string, .. } => unwrap_or_report(parse(date_string)),
     };
 
-    println!("{}", result.unwrap().format(&args.format));
+    println!("{}", result.format(&args.format));
 }
