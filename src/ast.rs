@@ -76,8 +76,6 @@ impl DateTime {
         tokens = 0;
         if let Some((time, t)) = Time::parse(&l[tokens..]) {
             tokens += t;
-            // TODO: does <time>, <date> introduce ambiguity where the time and date should be
-            // TODO: parsed separately?
             if l.get(tokens) == Some(&Lexeme::Comma) {
                 tokens += 1;
             }
@@ -445,21 +443,23 @@ impl Time {
 
         if let Some((hour, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
+            let mut minute = 0;
             if l.get(tokens) == Some(&Lexeme::Colon) {
                 tokens += 1;
 
                 if let Some((min, t)) = Num::parse(&l[tokens..]) {
                     tokens += t;
-                    if let Some(&Lexeme::AM) = l.get(tokens) {
-                        tokens += 1;
-                        return Some((Time::HourMinAM(hour, min), tokens));
-                    } else if let Some(&Lexeme::PM) = l.get(tokens) {
-                        tokens += 1;
-                        return Some((Time::HourMinPM(hour, min), tokens));
-                    } else {
-                        return Some((Time::HourMin(hour, min), tokens));
-                    }
+                    minute = min;
                 }
+            }
+            if let Some(&Lexeme::AM) = l.get(tokens) {
+                tokens += 1;
+                return Some((Time::HourMinAM(hour, minute), tokens));
+            } else if let Some(&Lexeme::PM) = l.get(tokens) {
+                tokens += 1;
+                return Some((Time::HourMinPM(hour, minute), tokens));
+            } else {
+                return Some((Time::HourMin(hour, minute), tokens));
             }
         }
 
