@@ -322,7 +322,7 @@ pub enum RelativeSpecifier {
 
 impl RelativeSpecifier {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        let res = match l.get(0) {
+        let res = match l.first() {
             Some(Lexeme::This) => Some(Self::This),
             Some(Lexeme::Next) => Some(Self::Next),
             Some(Lexeme::Last) => Some(Self::Last),
@@ -346,7 +346,7 @@ pub enum Weekday {
 
 impl Weekday {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        let res = match l.get(0) {
+        let res = match l.first() {
             Some(Lexeme::Sunday) => Some(Self::Sunday),
             Some(Lexeme::Monday) => Some(Self::Monday),
             Some(Lexeme::Tuesday) => Some(Self::Tuesday),
@@ -391,7 +391,7 @@ pub enum Month {
 
 impl Month {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        let res = match l.get(0) {
+        let res = match l.first() {
             Some(Lexeme::January) => Some(Self::January),
             Some(Lexeme::February) => Some(Self::February),
             Some(Lexeme::March) => Some(Self::March),
@@ -482,7 +482,7 @@ pub enum Article {
 
 impl Article {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        match l.get(0) {
+        match l.first() {
             Some(Lexeme::A) => Some((Self::A, 1)),
             Some(Lexeme::An) => Some((Self::An, 1)),
             Some(Lexeme::The) => Some((Self::The, 1)),
@@ -634,7 +634,7 @@ pub enum Unit {
 
 impl Unit {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        match l.get(0) {
+        match l.first() {
             Some(Lexeme::Day) => Some((Unit::Day, 1)),
             Some(Lexeme::Week) => Some((Unit::Week, 1)),
             Some(Lexeme::Month) => Some((Unit::Month, 1)),
@@ -650,7 +650,7 @@ struct Ones;
 
 impl Ones {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        let mut res = match l.get(0) {
+        let mut res = match l.first() {
             Some(Lexeme::One) => Some(1),
             Some(Lexeme::Two) => Some(2),
             Some(Lexeme::Three) => Some(3),
@@ -664,7 +664,7 @@ impl Ones {
         };
 
         if res.is_none() {
-            if let Some(Lexeme::Num(n)) = l.get(0) {
+            if let Some(Lexeme::Num(n)) = l.first() {
                 if *n < 10 {
                     res = Some(*n);
                 }
@@ -678,7 +678,7 @@ impl Ones {
 struct Teens;
 impl Teens {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        let mut res = match l.get(0) {
+        let mut res = match l.first() {
             Some(Lexeme::Ten) => Some((10, 1)),
             Some(Lexeme::Eleven) => Some((11, 1)),
             Some(Lexeme::Twelve) => Some((12, 1)),
@@ -693,7 +693,7 @@ impl Teens {
         };
 
         if res.is_none() {
-            if let Some(Lexeme::Num(n)) = l.get(0) {
+            if let Some(Lexeme::Num(n)) = l.first() {
                 if *n >= 10 && *n <= 19 {
                     res = Some((*n, 1));
                 }
@@ -707,7 +707,7 @@ impl Teens {
 struct Tens;
 impl Tens {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        match l.get(0) {
+        match l.first() {
             Some(Lexeme::Twenty) => Some((20, 1)),
             Some(Lexeme::Thirty) => Some((30, 1)),
             Some(Lexeme::Fourty) => Some((40, 1)),
@@ -828,7 +828,7 @@ impl NumTriple {
 struct NumTripleUnit;
 impl NumTripleUnit {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        match l.get(0) {
+        match l.first() {
             Some(Lexeme::Thousand) => Some((1000, 1)),
             Some(Lexeme::Million) => Some((1000000, 1)),
             Some(Lexeme::Billion) => Some((1000000000, 1)),
