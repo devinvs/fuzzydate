@@ -1,0 +1,19 @@
+[package]
+name = "fuzzydate-cli"
+description = "Command line interface to the fuzzydate library"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fuzzydate = {path = "../fuzzydate" }
+clap = {version = "4.5", features=["derive"]}
+anyhow = "1.0"
+
+[[bin]]
+name = "fuzzydate"
+path = "src/main.rs"
