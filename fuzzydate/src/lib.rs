@@ -15,7 +15,7 @@
 //!
 //! ```rust
 //! use fuzzydate::parse;
-//! use chrono::NaiveDateTime;
+//! use chrono::{NaiveDateTime};
 //!
 //! fn main() {
 //!     let date_string = "Five days after 2/12/22 5:00 PM";
@@ -192,7 +192,8 @@
 mod ast;
 mod lexer;
 
-use chrono::{Local, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, TimeZone};
+use chrono_tz::Tz;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -208,32 +209,59 @@ pub enum Error {
     /// e.g. `"tomorrow at at 5pm"`
     ParseError,
 }
+
 // so that we don't have to change this in both places
 // doesn't show up in the docs
-pub type Output = Result<NaiveDateTime, Error>;
+pub type NaiveOutput = Result<NaiveDateTime, Error>;
+pub type AwareOutput = Result<DateTime<Tz>, Error>;
 
-/// Parse an input string into a chrono NaiveDateTime, using the default
+/// Parse an input string into a chrono DateTime, using the default
 /// values from the specified default value where not specified
-pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> Output {
+pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
-    tree.to_chrono(default, None)
+    // TODO: handle DST
+    let now = Local::now()
+        .with_time(default)
+        .earliest()
+        .ok_or(crate::Error::ParseError)?;
+
+    tree.to_chrono(now).map(|dt| dt.naive_local())
 }
 
 /// Parse an input string into a chrono NaiveDateTime, treating the default as
 /// if it was the current time.
-pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> Output {
+pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
-    tree.to_chrono(default.time(), Some(default))
+    // TODO: timezone
+    let now = default
+        .and_local_timezone(Local)
+        .earliest()
+        .ok_or(crate::Error::ParseError)?;
+
+    tree.to_chrono(now).map(|dt| dt.naive_local())
 }
 
 /// Parse an input string into a chrono NaiveDateTime with the default
 /// time being now
-pub fn parse(input: impl Into<String>) -> Output {
-    parse_with_default_time(input, Local::now().naive_local().time())
+pub fn parse(input: impl Into<String>) -> NaiveOutput {
+    parse_with_default_time(input, Local::now().time())
+}
+
+/// Parse an input string into a chrono NaiveDateTime with the default
+/// time being now
+pub fn aware_parse<Tz: TimeZone>(
+    input: impl Into<String>,
+    relative_to: Option<DateTime<Tz>>,
+    tz: Tz,
+) -> Result<DateTime<Tz>, Error> {
+    let lexemes = lexer::Lexeme::lex_line(input.into())?;
+    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+
+    tree.to_chrono(relative_to.unwrap_or_else(|| Local::now()))
 }
 
 #[test]

@@ -229,9 +229,6 @@ impl Lexeme {
                 ls.push(Lexeme::Num(num));
                 stack.clear();
                 Ok(())
-            } else if False {
-                // TODO: handle am/pm without space here
-                todo!();
             } else if let Ok(datetime) = DateTime::parse_from_rfc3339(stack.as_str()) {
                 ls.push(Lexeme::RFC3339(datetime.to_utc()));
                 stack.clear();
@@ -260,7 +257,7 @@ impl Lexeme {
             }
 
             if stack.len() == LEXER_STACK_SIZE {
-                todo!("Need to error if we're about to exceed our stack size");
+                return Err(crate::Error::ParseError);
             }
 
             match c {
@@ -343,3 +340,14 @@ fn test_unknown_token() {
     let input = "Hello World".to_string();
     assert!(Lexeme::lex_line(input).is_err());
 }
+
+#[test]
+fn test_am_without_space() {
+    let input = "10am".to_string();
+    assert_eq!(
+        Ok(vec![Lexeme::Num(10), Lexeme::AM,]),
+        Lexeme::lex_line(input)
+    );
+}
+
+// TODO: test stack size error
