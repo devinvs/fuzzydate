@@ -199,8 +199,10 @@ pub enum Lexeme {
     Million,
     Billion,
     Last,
-    RFC3339(NaiveDateTime),
+    RFC3339(DateTime<chrono::Utc>),
 }
+
+const LEXER_STACK_SIZE: usize = 20;
 
 impl Lexeme {
     /// Lex a string into a list of Lexemes
@@ -210,8 +212,7 @@ impl Lexeme {
 
         let mut lexemes = Vec::new(); // List of Lexemes
         let chars = s.chars(); // Character iterator
-                               // TODO: is this big enough for RFC3339 strs?
-        let mut stack = String::with_capacity(10);
+        let mut stack = String::with_capacity(LEXER_STACK_SIZE);
 
         // Convenience closure which takes a reference to our stack
         // and our lexemes, searches our keyword map for the stack,
@@ -228,9 +229,11 @@ impl Lexeme {
                 ls.push(Lexeme::Num(num));
                 stack.clear();
                 Ok(())
-            // TODO: handle am/pm without space here
+            } else if False {
+                // TODO: handle am/pm without space here
+                todo!();
             } else if let Ok(datetime) = DateTime::parse_from_rfc3339(stack.as_str()) {
-                ls.push(Lexeme::RFC3339(datetime.naive_local()));
+                ls.push(Lexeme::RFC3339(datetime.to_utc()));
                 stack.clear();
                 Ok(())
             } else {
@@ -245,6 +248,19 @@ impl Lexeme {
             if c.is_whitespace() {
                 push_lexeme(&mut stack, &mut lexemes)?;
                 continue;
+            }
+
+            if stack
+                .chars()
+                .last()
+                // switching from a digit to alpha or alpha to digit is the end of a lexeme
+                .is_some_and(|sc| sc.is_digit(10) != c.is_digit(10))
+            {
+                push_lexeme(&mut stack, &mut lexemes)?;
+            }
+
+            if stack.len() == LEXER_STACK_SIZE {
+                todo!("Need to error if we're about to exceed our stack size");
             }
 
             match c {
