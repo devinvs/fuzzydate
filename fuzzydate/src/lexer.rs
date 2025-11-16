@@ -210,6 +210,7 @@ impl Lexeme {
 
         let mut lexemes = Vec::new(); // List of Lexemes
         let chars = s.chars(); // Character iterator
+                               // TODO: is this big enough for RFC3339 strs?
         let mut stack = String::with_capacity(10);
 
         // Convenience closure which takes a reference to our stack
@@ -227,6 +228,7 @@ impl Lexeme {
                 ls.push(Lexeme::Num(num));
                 stack.clear();
                 Ok(())
+            // TODO: handle am/pm without space here
             } else if let Ok(datetime) = DateTime::parse_from_rfc3339(stack.as_str()) {
                 ls.push(Lexeme::RFC3339(datetime.naive_local()));
                 stack.clear();
