@@ -236,7 +236,7 @@ pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> Na
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
-    // TODO: timezone
+    // TODO: handle DST
     let now = default
         .and_local_timezone(Local)
         .earliest()
@@ -261,7 +261,9 @@ pub fn aware_parse<Tz: TimeZone>(
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
-    tree.to_chrono(relative_to.unwrap_or_else(|| Local::now()))
+    let now = relative_to.unwrap_or_else(|| tz.from_utc_datetime(&Local::now().naive_utc()));
+
+    tree.to_chrono(now)
 }
 
 #[test]
