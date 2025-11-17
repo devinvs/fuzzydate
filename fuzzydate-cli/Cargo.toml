@@ -15,6 +15,7 @@ clap = {version = "4.5", features=["derive"]}
 anyhow = "1.0"
 chrono-tz = "0.10.4"
 chrono = { version = "0.4.42", features = ["clock"] }
+iana-time-zone = "0.1.64"
 
 [[bin]]
 name = "fuzzydate"

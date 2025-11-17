@@ -1,27 +1,24 @@
 use std::{fmt::Display, process::exit, str::FromStr};
 
-use chrono::Local;
 use chrono_tz::Tz;
 use clap::Parser;
-use fuzzydate::{aware_parse, parse, parse_relative_to, parse_with_default_time};
+use fuzzydate::aware_parse;
 
 #[derive(Parser, Debug)]
 struct Args {
-    // TODO: handle timezones
-    #[arg(short, long, default_value = "%Y-%m-%dT%H:%M:%S%Z")]
+    #[arg(short, long, default_value = "%+")]
     format: String,
 
     #[arg(short, long, group = "base")]
     relative_to: Option<String>,
 
+    // TODO: describe default as Local
     #[arg(long, group = "base")]
     input_timezone: Option<String>,
 
     #[arg(long, group = "base")]
-    // TODO: default to local
     output_timezone: Option<String>,
 
-    #[arg(short, long, group = "base")]
     #[arg(default_value = "today")]
     date_string: Vec<String>,
 }
@@ -43,19 +40,23 @@ fn main() {
 
     // TODO: fix the expects here
     // TODO: fix the timezones
-    let input_tz = args
+    let input_tz_str = args
         .input_timezone
-        .map_or(Local, |tz| Tz::from_str(&tz).expect("Invalid Timezone"));
-    let output_tz = args
-        .output_timezone
-        .map_or(Local, |tz| Tz::from_str(&tz).expect("Invalid timezone"));
+        .unwrap_or_else(|| unwrap_or_report(iana_time_zone::get_timezone()));
+    let input_tz = unwrap_or_report(Tz::from_str(&input_tz_str));
 
     let relative_to = args
         .relative_to
         .map(|dt| aware_parse(dt, None, input_tz).expect("Invalid datetime"));
 
-    let result =
-        aware_parse(args.date_string.join(" "), relative_to, input_tz).expect("Parse Error");
+    let result = unwrap_or_report(aware_parse(fuzzy_str, relative_to, input_tz));
+
+    let output_tz_str = args
+        .output_timezone
+        .unwrap_or_else(|| unwrap_or_report(iana_time_zone::get_timezone()));
+    let output_tz = unwrap_or_report(Tz::from_str(&output_tz_str));
+
+    let result = result.with_timezone(&output_tz);
 
     println!("{}", result.format(&args.format));
 }

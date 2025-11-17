@@ -35,6 +35,8 @@
 //!              | <date> , <time>
 //!              | <time> , <date>
 //!              | <time> on <date>
+//!              | <date> at <duration> after <time>
+//!              | <date> at <duration> before <time>
 //!              | <duration> after <datetime>
 //!              | <duration> from <datetime>
 //!              | <duration> before <datetime>
@@ -193,7 +195,6 @@ mod ast;
 mod lexer;
 
 use chrono::{DateTime, Local, NaiveDateTime, NaiveTime, TimeZone};
-use chrono_tz::Tz;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -213,13 +214,16 @@ pub enum Error {
 // so that we don't have to change this in both places
 // doesn't show up in the docs
 pub type NaiveOutput = Result<NaiveDateTime, Error>;
-pub type AwareOutput = Result<DateTime<Tz>, Error>;
 
 /// Parse an input string into a chrono DateTime, using the default
 /// values from the specified default value where not specified
 pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+    let (tree, tokens) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+
+    if tokens < lexemes.len() {
+        return Err(crate::Error::ParseError);
+    };
 
     // TODO: handle DST
     let now = Local::now()
@@ -234,7 +238,11 @@ pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> 
 /// if it was the current time.
 pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+    let (tree, tokens) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+
+    if tokens < lexemes.len() {
+        return Err(crate::Error::ParseError);
+    };
 
     // TODO: handle DST
     let now = default
@@ -259,7 +267,11 @@ pub fn aware_parse<Tz: TimeZone>(
     tz: Tz,
 ) -> Result<DateTime<Tz>, Error> {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
-    let (tree, _) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+    let (tree, tokens) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
+
+    if tokens < lexemes.len() {
+        return Err(crate::Error::ParseError);
+    };
 
     let now = relative_to.unwrap_or_else(|| tz.from_utc_datetime(&Local::now().naive_utc()));
 
