@@ -32,32 +32,9 @@ impl DateTime {
     pub fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
         let mut tokens = 0;
 
-        if let Some((time, t)) = Time::parse(&l[tokens..]) {
-            tokens += t;
-
-            if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::On) {
-                tokens += 1;
-            }
-
-            if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
-                tokens += t;
-                return Some((Self::TimeDate(time, date_expr), tokens));
-            }
-
-            tokens = 0;
-        }
-
-        if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
-            tokens += t;
-
-            if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::At) {
-                tokens += 1;
-            }
-            if let Some((time, t)) = Time::parse(&l[tokens..]) {
-                tokens += t;
-                return Some((Self::DateTime(date_expr, time), tokens));
-            }
-            tokens = 0;
+        if l.get(tokens) == Some(&Lexeme::Now) {
+            tokens += 1;
+            return Some((Self::Now, tokens));
         }
 
         if let Some((dur, t)) = Duration::parse(&l[tokens..]) {
@@ -104,9 +81,38 @@ impl DateTime {
             return None;
         }
 
-        if l.get(tokens) == Some(&Lexeme::Now) {
-            tokens += 1;
-            return Some((Self::Now, tokens));
+        if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
+            tokens += t;
+
+            if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::At) {
+                tokens += 1;
+                // TODO: require time to be present
+            }
+
+            if let Some((time, t)) = Time::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::DateTime(date_expr, time), tokens));
+            }
+
+            return Some((Self::DateTime(date_expr, Time::Empty), tokens));
+        }
+
+        // time binds really eagerly. A bare number is a valid time, but can also be the start of a
+        // date or duration expression, so we need to check time last
+        if let Some((time, t)) = Time::parse(&l[tokens..]) {
+            tokens += t;
+
+            if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::On) {
+                tokens += 1;
+                // TODO: require date to be present
+            }
+
+            if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::TimeDate(time, date_expr), tokens));
+            }
+
+            return Some((Self::TimeDate(time, DateExpr::Empty), tokens));
         }
 
         None
@@ -160,6 +166,7 @@ pub enum DateExpr {
     UnitRelative(RelativeSpecifier, Unit),
     Relative(RelativeSpecifier, Weekday),
     Weekday(Weekday),
+    Empty,
 }
 
 impl DateExpr {
@@ -284,6 +291,7 @@ impl DateExpr {
 
                 Ok(today)
             }
+            Self::Empty => Ok(now.date_naive()),
         }
     }
 }
@@ -337,6 +345,7 @@ impl Date {
         }
 
         // TODO: year month day
+        tokens = 0;
         if let Some((num1, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
             if let Some(delim) = l.get(tokens) {
@@ -563,13 +572,12 @@ impl Time {
             }
         }
 
-        tokens = 0;
-        Some((Self::Empty, tokens))
+        None
     }
 
     fn to_chrono<Tz: TimeZone>(&self, now: ChronoDateTime<Tz>) -> Result<ChronoTime, crate::Error> {
         match *self {
-            Time::Empty => Ok(now.time()),
+            Self::Empty => Ok(now.time()),
             Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0).ok_or(
                 crate::Error::InvalidDate(format!("Invalid time: {hour}:{min}")),
             ),
@@ -733,6 +741,7 @@ impl Duration {
 
     fn after_date(&self, date: ChronoDate) -> ChronoDate {
         if self.is_sub_daily() {
+            // FIXME
             panic!()
         }
 
@@ -1163,7 +1172,7 @@ mod tests {
         let lexemes = vec![
             Lexeme::A,
             Lexeme::Week,
-            Lexeme::After,
+            Lexeme::And,
             Lexeme::Two,
             Lexeme::Day,
             Lexeme::Before,
