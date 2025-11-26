@@ -1172,7 +1172,7 @@ mod tests {
         let lexemes = vec![
             Lexeme::A,
             Lexeme::Week,
-            Lexeme::And,
+            Lexeme::After,
             Lexeme::Two,
             Lexeme::Day,
             Lexeme::Before,
