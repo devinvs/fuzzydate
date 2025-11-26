@@ -30,21 +30,25 @@
 //! ## Grammar
 //! ```text
 //! <datetime> ::= <time>
-//!              | <time> , <date_expr>
-//!              | <time> <date_expr>
-//!              | <time> on <date_expr>
-//!              | <date_expr>
-//!              | <date_expr> <time>
-//!              | <date_expr> , <time>
-//!              | <date_expr> at <time>
-//!              | <duration_expr> <datetime>
+//!              | <time> , <date>
+//!              | <time> <date>
+//!              | <time> on <date>
+//!              | <date>
+//!              | <date> <time>
+//!              | <date> , <time>
+//!              | <date> at <time>
+//!              | <duration> after <datetime>
+//!              | <duration> from <datetime>
+//!              | <duration> before <datetime>
 //!              | now
 //!
-//! <article> ::= a
-//!            | an
-//!            | the
-//!
-//! <date_expr> ::= <date>
+//! <date> ::= today
+//!               | tomorrow
+//!               | yesterday
+//!               | <num> / <num> / <num>
+//!               | <num> - <num> - <num>
+//!               | <num> . <num> . <num>
+//!               | <month> <num> <num>
 //!               | <duration> ago              ; duration must be for a whole number of days
 //!               | <duration> after <date>
 //!               | <duration> from <date>
@@ -53,12 +57,25 @@
 //!               | <relative_specifier> <unit>
 //!               | <weekday>
 //!
-//! <date> ::= today
-//!          | tomorrow
-//!          | <num> / <num> / <num>
-//!          | <num> - <num> - <num>
-//!          | <num> . <num> . <num>
-//!          | <month> <num> <num>
+//! <time> ::= <num>
+//!          | <num>:<num>
+//!          | <num>:<num> am
+//!          | <num>:<num> pm
+//!          | <num>
+//!          | <num> am
+//!          | <num> pm
+//!          | <num> <num> am
+//!          | <num> <num> pm
+//!          | midnight
+//!          | noon
+//!
+//! <duration> ::= <num> <unit>
+//!              | <article> <unit>
+//!              | <duration> and <duration>
+//!
+//! <article> ::= a
+//!            | an
+//!            | the
 //!
 //!
 //! <relative_specifier> ::= this
@@ -103,21 +120,6 @@
 //!           | oct
 //!           | nov
 //!           | dec
-//!
-//! <duration> ::= <num> <unit>
-//!              | <article> <unit>
-//!              | <duration> and <duration>
-//!
-//! <time> ::= <num>:<num>
-//!          | <num>:<num> am
-//!          | <num>:<num> pm
-//!          | <num>
-//!          | <num> am
-//!          | <num> pm
-//!          | <num> <num> am
-//!          | <num> <num> pm
-//!          | midnight
-//!          | noon
 //!
 //! <unit> ::= day
 //!          | days

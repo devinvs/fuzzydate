@@ -10,9 +10,9 @@ use crate::lexer::Lexeme;
 /// Root of the Abstract Syntax Tree, represents a fully parsed DateTime
 pub enum DateTime {
     /// Standard date and time
-    DateTime(DateExpr, Time),
+    DateTime(Date, Time),
     /// Time before date
-    TimeDate(Time, DateExpr),
+    TimeDate(Time, Date),
     /// Duration after a datetime
     After(Duration, Box<DateTime>),
     /// Duration before a datetime
@@ -31,6 +31,23 @@ impl DateTime {
             return Some((Self::Now, tokens));
         }
 
+        if let Some((date_expr, t)) = Date::parse(&l[tokens..]) {
+            tokens += t;
+
+            if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::At) {
+                tokens += 1;
+            }
+
+            if let Some((time, t)) = Time::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::DateTime(date_expr, time), tokens));
+            }
+
+            return Some((Self::DateTime(date_expr, Time::Empty), tokens));
+        }
+
+        // Date also accepts a leading duration and should take precedence. For example,
+        // "3 days ago" is a date specified by duration, not a duration modifying a datetime
         if let Some((dur, t)) = Duration::parse(&l[tokens..]) {
             tokens += t;
 
@@ -75,22 +92,6 @@ impl DateTime {
             return None;
         }
 
-        if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
-            tokens += t;
-
-            if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::At) {
-                tokens += 1;
-                // TODO: require time to be present
-            }
-
-            if let Some((time, t)) = Time::parse(&l[tokens..]) {
-                tokens += t;
-                return Some((Self::DateTime(date_expr, time), tokens));
-            }
-
-            return Some((Self::DateTime(date_expr, Time::Empty), tokens));
-        }
-
         // time binds really eagerly. A bare number is a valid time, but can also be the start of a
         // date or duration expression, so we need to check time last
         if let Some((time, t)) = Time::parse(&l[tokens..]) {
@@ -98,15 +99,14 @@ impl DateTime {
 
             if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::On) {
                 tokens += 1;
-                // TODO: require date to be present
             }
 
-            if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
+            if let Some((date_expr, t)) = Date::parse(&l[tokens..]) {
                 tokens += t;
                 return Some((Self::TimeDate(time, date_expr), tokens));
             }
 
-            return Some((Self::TimeDate(time, DateExpr::Empty), tokens));
+            return Some((Self::TimeDate(time, Date::Empty), tokens));
         }
 
         None
@@ -151,145 +151,6 @@ impl DateTime {
 
 #[derive(Debug, Eq, PartialEq)]
 /// A Parsed Date
-pub enum DateExpr {
-    Literal(Date),
-    Before(Duration, Box<Date>),
-    After(Duration, Box<Date>),
-    UnitRelative(RelativeSpecifier, Unit),
-    Relative(RelativeSpecifier, Weekday),
-    Weekday(Weekday),
-    Empty,
-}
-
-impl DateExpr {
-    fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
-        let mut tokens = 0;
-
-        if let Some((literal, t)) = Date::parse(l) {
-            tokens += t;
-            return Some((DateExpr::Literal(literal), tokens));
-        }
-
-        if let Some((duration, t)) = Duration::parse(l) {
-            tokens += t;
-
-            if duration.is_sub_daily() {
-                return None;
-            }
-
-            if l.get(tokens) == Some(&Lexeme::Ago) {
-                tokens += 1;
-                return Some((Self::Before(duration, Box::new(Date::Today)), tokens));
-            }
-
-            if l.get(tokens) == Some(&Lexeme::After) {
-                tokens += 1;
-                if let Some((date, t)) = Date::parse(&l[tokens..]) {
-                    tokens += t;
-
-                    return Some((Self::After(duration, Box::new(date)), tokens));
-                }
-
-                return None;
-            }
-
-            if l.get(tokens) == Some(&Lexeme::From) {
-                tokens += 1;
-                if let Some((date, t)) = Date::parse(&l[tokens..]) {
-                    tokens += t;
-
-                    return Some((Self::After(duration, Box::new(date)), tokens));
-                }
-
-                return None;
-            }
-
-            return None;
-        }
-
-        if let Some((relspec, t)) = RelativeSpecifier::parse(&l[tokens..]) {
-            tokens += t;
-
-            if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
-                tokens += t;
-                return Some((Self::Relative(relspec, weekday), tokens));
-            }
-
-            if let Some((unit, t)) = Unit::parse(&l[tokens..]) {
-                tokens += t;
-                return Some((Self::UnitRelative(relspec, unit), tokens));
-            }
-
-            return None;
-        }
-
-        if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
-            tokens += t;
-            return Some((Self::Weekday(weekday), tokens));
-        }
-
-        None
-    }
-
-    fn to_chrono<Tz: TimeZone>(&self, now: ChronoDateTime<Tz>) -> Result<ChronoDate, crate::Error> {
-        match self {
-            Self::Literal(date) => date.to_chrono(now),
-            Self::Before(dur, date) => Ok(dur.before_date(date.to_chrono(now)?)),
-            Self::After(dur, date) => Ok(dur.after_date(date.to_chrono(now)?)),
-            Self::UnitRelative(spec, unit) => {
-                match spec {
-                    RelativeSpecifier::Next => {
-                        Ok(Duration::Specific(1, unit.to_owned()).after_date(now.date_naive()))
-                    }
-                    RelativeSpecifier::Last => {
-                        Ok(Duration::Specific(1, unit.to_owned()).before_date(now.date_naive()))
-                    }
-                    RelativeSpecifier::This => {
-                        // This would be nonsense as far as I can tell. An example would
-                        // be "2pm this month"
-                        Err(crate::Error::ParseError)
-                    }
-                }
-            }
-            Self::Relative(spec, day) => {
-                let day = day.to_chrono();
-                let mut today = now.date_naive();
-
-                match spec {
-                    RelativeSpecifier::Next => {
-                        today += ChronoDuration::weeks(1);
-                    }
-                    RelativeSpecifier::Last => {
-                        today -= ChronoDuration::weeks(1);
-                    }
-                    RelativeSpecifier::This => {
-                        // No modification necessary
-                    }
-                }
-
-                while today.weekday() != day {
-                    today += ChronoDuration::days(1);
-                }
-
-                Ok(today)
-            }
-            Self::Weekday(day) => {
-                let day = day.to_chrono();
-                let mut today = now.date_naive();
-
-                while today.weekday() != day {
-                    today += ChronoDuration::days(1);
-                }
-
-                Ok(today)
-            }
-            Self::Empty => Ok(now.date_naive()),
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-/// A Parsed Date
 pub enum Date {
     MonthNumDayYear(u32, u32, u32),
     MonthDayYear(Month, u32, u32),
@@ -298,6 +159,12 @@ pub enum Date {
     Today,
     Tomorrow,
     Yesterday,
+    Before(Duration, Box<Date>),
+    After(Duration, Box<Date>),
+    UnitRelative(RelativeSpecifier, Unit),
+    Relative(RelativeSpecifier, Weekday),
+    Weekday(Weekday),
+    Empty,
 }
 
 impl Date {
@@ -373,20 +240,80 @@ impl Date {
             }
         }
 
+        let mut tokens = 0;
+
+        if let Some((duration, t)) = Duration::parse(l) {
+            tokens += t;
+
+            if duration.is_sub_daily() {
+                return None;
+            }
+
+            if l.get(tokens) == Some(&Lexeme::Ago) {
+                tokens += 1;
+                return Some((Self::Before(duration, Box::new(Self::Today)), tokens));
+            }
+
+            if l.get(tokens) == Some(&Lexeme::After) {
+                tokens += 1;
+                if let Some((date, t)) = Self::parse(&l[tokens..]) {
+                    tokens += t;
+
+                    return Some((Self::After(duration, Box::new(date)), tokens));
+                }
+
+                return None;
+            }
+
+            if l.get(tokens) == Some(&Lexeme::From) {
+                tokens += 1;
+                if let Some((date, t)) = Self::parse(&l[tokens..]) {
+                    tokens += t;
+
+                    return Some((Self::After(duration, Box::new(date)), tokens));
+                }
+
+                return None;
+            }
+
+            return None;
+        }
+
+        if let Some((relspec, t)) = RelativeSpecifier::parse(&l[tokens..]) {
+            tokens += t;
+
+            if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::Relative(relspec, weekday), tokens));
+            }
+
+            if let Some((unit, t)) = Unit::parse(&l[tokens..]) {
+                tokens += t;
+                return Some((Self::UnitRelative(relspec, unit), tokens));
+            }
+
+            return None;
+        }
+
+        if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
+            tokens += t;
+            return Some((Self::Weekday(weekday), tokens));
+        }
+
         None
     }
 
     fn to_chrono<Tz: TimeZone>(&self, now: ChronoDateTime<Tz>) -> Result<ChronoDate, crate::Error> {
         let today = now.date_naive();
         Ok(match self {
-            Date::Today => today,
-            Date::Yesterday => today - ChronoDuration::days(1),
-            Date::Tomorrow => today + ChronoDuration::days(1),
-            Date::MonthNumDay(month, day) => ChronoDate::from_ymd_opt(today.year(), *month, *day)
+            Self::Today => today,
+            Self::Yesterday => today - ChronoDuration::days(1),
+            Self::Tomorrow => today + ChronoDuration::days(1),
+            Self::MonthNumDay(month, day) => ChronoDate::from_ymd_opt(today.year(), *month, *day)
                 .ok_or(crate::Error::InvalidDate(format!(
                 "Invalid month-day: {month}-{day}"
             )))?,
-            Date::MonthNumDayYear(month, day, year) => {
+            Self::MonthNumDayYear(month, day, year) => {
                 let curr = today.year() as u32;
                 let year = if *year < 100 {
                     if curr + 10 < 2000 + *year {
@@ -404,13 +331,13 @@ impl Date {
                     )),
                 )?
             }
-            Date::MonthDay(month, day) => {
+            Self::MonthDay(month, day) => {
                 let month = *month as u32;
                 ChronoDate::from_ymd_opt(today.year(), month, *day).ok_or(
                     crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
                 )?
             }
-            Date::MonthDayYear(month, day, year) => {
+            Self::MonthDayYear(month, day, year) => {
                 ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day).ok_or(
                     crate::Error::InvalidDate(format!(
                         "Invalid year-month-day: {}-{}-{}",
@@ -418,6 +345,56 @@ impl Date {
                     )),
                 )?
             }
+            Self::Before(dur, date) => dur.before_date(date.to_chrono(now)?)?,
+            Self::After(dur, date) => dur.after_date(date.to_chrono(now)?)?,
+            Self::UnitRelative(spec, unit) => {
+                match spec {
+                    RelativeSpecifier::Next => {
+                        Duration::Specific(1, unit.to_owned()).after_date(now.date_naive())?
+                    }
+                    RelativeSpecifier::Last => {
+                        Duration::Specific(1, unit.to_owned()).before_date(now.date_naive())?
+                    }
+                    RelativeSpecifier::This => {
+                        // This would be nonsense as far as I can tell. An example would
+                        // be "2pm this month"
+                        return Err(crate::Error::ParseError);
+                    }
+                }
+            }
+            Self::Relative(spec, day) => {
+                let day = day.to_chrono();
+                let mut today = now.date_naive();
+
+                match spec {
+                    RelativeSpecifier::Next => {
+                        today += ChronoDuration::weeks(1);
+                    }
+                    RelativeSpecifier::Last => {
+                        today -= ChronoDuration::weeks(1);
+                    }
+                    RelativeSpecifier::This => {
+                        // No modification necessary
+                    }
+                }
+
+                while today.weekday() != day {
+                    today += ChronoDuration::days(1);
+                }
+
+                today
+            }
+            Self::Weekday(day) => {
+                let day = day.to_chrono();
+                let mut today = now.date_naive();
+
+                while today.weekday() != day {
+                    today += ChronoDuration::days(1);
+                }
+
+                today
+            }
+            Self::Empty => now.date_naive(),
         })
     }
 }
@@ -731,42 +708,51 @@ impl Duration {
         }
     }
 
-    fn after_date(&self, date: ChronoDate) -> ChronoDate {
+    fn after_date(&self, date: ChronoDate) -> Result<ChronoDate, crate::Error> {
         if self.is_sub_daily() {
-            // FIXME
-            panic!()
+            // TODO: better error
+            return Err(crate::Error::ParseError);
         }
 
         if let Duration::Concat(dur1, dur2) = self {
-            return dur2.after_date(dur1.after_date(date));
+            return dur2.after_date(dur1.after_date(date)?);
         }
 
         if self.convertible() {
-            date + self.to_chrono()
+            Ok(date + self.to_chrono())
         } else {
             match self.unit() {
                 Unit::Month => date
                     .checked_add_months(chrono::Months::new(self.num()))
-                    .expect("Date out of representable date range."),
-                Unit::Year => date.with_year(date.year() + self.num() as i32).unwrap(),
+                    .ok_or(crate::Error::ParseError),
+                Unit::Year => date
+                    .with_year(date.year() + self.num() as i32)
+                    .ok_or(crate::Error::ParseError),
                 _ => unreachable!(),
             }
         }
     }
 
-    fn before_date(&self, date: ChronoDate) -> ChronoDate {
+    fn before_date(&self, date: ChronoDate) -> Result<ChronoDate, crate::Error> {
+        if self.is_sub_daily() {
+            // TODO: better error
+            return Err(crate::Error::ParseError);
+        }
+
         if let Duration::Concat(dur1, dur2) = self {
-            return dur2.before_date(dur1.before_date(date));
+            return dur2.before_date(dur1.before_date(date)?);
         }
 
         if self.convertible() {
-            date - self.to_chrono()
+            Ok(date - self.to_chrono())
         } else {
             match self.unit() {
                 Unit::Month => date
                     .checked_sub_months(chrono::Months::new(self.num()))
-                    .expect("Date out of representable date range."),
-                Unit::Year => date.with_year(date.year() - self.num() as i32).unwrap(),
+                    .ok_or(crate::Error::ParseError),
+                Unit::Year => date
+                    .with_year(date.year() - self.num() as i32)
+                    .ok_or(crate::Error::ParseError),
                 _ => unreachable!(),
             }
         }
@@ -778,7 +764,7 @@ impl Duration {
                 Unit::Day | Unit::Week | Unit::Month | Unit::Year => false,
                 Unit::Hour | Unit::Minute => true,
             },
-            Self::Concat(a, b) => a.is_sub_daily() || b.is_sub_daily(),
+            Self::Concat(a, b) => a.is_sub_daily() && b.is_sub_daily(),
         }
     }
 }
@@ -1146,9 +1132,7 @@ mod tests {
             Lexeme::Noon,
         ];
         let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-        let date = date
-            .to_chrono(Local::now().naive_local().time(), None)
-            .unwrap();
+        let date = date.to_chrono(Local::now()).unwrap();
 
         assert_eq!(t, 4);
         assert_eq!(date.year(), 2022);
@@ -1169,9 +1153,7 @@ mod tests {
             Lexeme::Midnight,
         ];
         let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
-        let date = date
-            .to_chrono(Local::now().naive_local().time(), None)
-            .unwrap();
+        let date = date.to_chrono(Local::now()).unwrap();
 
         assert_eq!(t, 4);
         assert_eq!(date.year(), 2022);
@@ -1504,9 +1486,8 @@ mod tests {
         assert_eq!(date.day(), 28);
     }
 
-    #[test_case(None; "default reference time")]
-    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-    fn test_next_week(now: Option<ChronoDateTime>) {
+    #[test]
+    fn test_next_week() {
         let l = vec![Lexeme::Next, Lexeme::Week];
 
         let now = Local::now();
@@ -1516,9 +1497,8 @@ mod tests {
         assert_eq!(date, now + ChronoDuration::weeks(1));
     }
 
-    #[test_case(None; "default reference time")]
-    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-    fn test_next_month(now: Option<ChronoDateTime>) {
+    #[test]
+    fn test_next_month() {
         let l = vec![Lexeme::Next, Lexeme::Month];
 
         let now = Local::now();
@@ -1532,9 +1512,8 @@ mod tests {
         );
     }
 
-    #[test_case(None; "default reference time")]
-    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-    fn test_next_year(now: Option<ChronoDateTime>) {
+    #[test]
+    fn test_next_year() {
         let l = vec![Lexeme::Next, Lexeme::Year];
 
         let now = Local::now();
@@ -1548,9 +1527,8 @@ mod tests {
         );
     }
 
-    #[test_case(None; "default reference time")]
-    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-    fn test_last_week(now: Option<ChronoDateTime>) {
+    #[test]
+    fn test_last_week() {
         let l = vec![Lexeme::Last, Lexeme::Week];
 
         let now = Local::now();
@@ -1560,9 +1538,8 @@ mod tests {
         assert_eq!(date, now - ChronoDuration::weeks(1));
     }
 
-    #[test_case(None; "default reference time")]
-    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-    fn test_last_month(now: Option<ChronoDateTime>) {
+    #[test]
+    fn test_last_month() {
         let l = vec![Lexeme::Last, Lexeme::Month];
 
         let now = Local::now();
@@ -1576,9 +1553,8 @@ mod tests {
         );
     }
 
-    #[test_case(None; "default reference time")]
-    #[test_case(Some(Local.with_ymd_and_hms(2021, 4, 30, 7, 15, 17).single().expect("literal date for test case").naive_local()); "past reference time")]
-    fn test_last_year(now: Option<ChronoDateTime>) {
+    #[test]
+    fn test_last_year() {
         let l = vec![Lexeme::Last, Lexeme::Year];
 
         let now = Local::now();
