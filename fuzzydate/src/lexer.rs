@@ -245,7 +245,7 @@ impl Lexeme {
                 .chars()
                 .last()
                 // switching from a digit to alpha or alpha to digit is the end of a lexeme
-                .is_some_and(|sc| sc.is_digit(10) != c.is_digit(10))
+                .is_some_and(|sc| sc.is_ascii_digit() != c.is_ascii_digit())
             {
                 push_lexeme(&mut stack, &mut lexemes)?;
             }

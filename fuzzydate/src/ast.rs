@@ -165,12 +165,12 @@ impl DateExpr {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
         let mut tokens = 0;
 
-        if let Some((literal, t)) = Date::parse(&l) {
+        if let Some((literal, t)) = Date::parse(l) {
             tokens += t;
             return Some((DateExpr::Literal(literal), tokens));
         }
 
-        if let Some((duration, t)) = Duration::parse(&l) {
+        if let Some((duration, t)) = Duration::parse(l) {
             tokens += t;
 
             if duration.is_sub_daily() {
