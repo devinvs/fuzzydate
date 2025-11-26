@@ -5,12 +5,6 @@ use chrono::{
 
 use crate::lexer::Lexeme;
 
-// TODO: order of operations is date math then time math
-// interesting cases:
-// 3 days ago at noon
-// an hour before 3 days ago at noon
-// an hour before noon 3 days ago
-
 #[derive(Debug, Eq, PartialEq)]
 #[allow(clippy::enum_variant_names)]
 /// Root of the Abstract Syntax Tree, represents a fully parsed DateTime
@@ -129,7 +123,6 @@ impl DateTime {
                 let date = date.to_chrono(now.to_owned())?;
                 let time = time.to_chrono(now.to_owned())?;
 
-                // TODO: how to handle DST?
                 NaiveDateTime::new(date, time)
                     .and_local_timezone(now.timezone())
                     .earliest()
@@ -139,7 +132,6 @@ impl DateTime {
                 let date = date.to_chrono(now.to_owned())?;
                 let time = time.to_chrono(now.to_owned())?;
 
-                // TODO: how to handle DST?
                 NaiveDateTime::new(date, time)
                     .and_local_timezone(now.timezone())
                     .earliest()

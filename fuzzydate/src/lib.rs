@@ -230,7 +230,6 @@ pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> 
         return Err(crate::Error::ParseError);
     };
 
-    // TODO: handle DST
     let now = Local::now()
         .with_time(default)
         .earliest()
@@ -249,7 +248,6 @@ pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> Na
         return Err(crate::Error::ParseError);
     };
 
-    // TODO: handle DST
     let now = default
         .and_local_timezone(Local)
         .earliest()
