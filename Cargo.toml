@@ -15,3 +15,7 @@ repository = "https://github.com/DevinVS/fuzzydate"
 [workspace]
 resolver = "2"
 members = ["fuzzydate", "fuzzydate-cli"]
+
+[patch.crates-io]
+# Override the published `fuzzydate` crate with the local path for development
+fuzzydate = { path = "fuzzydate" }

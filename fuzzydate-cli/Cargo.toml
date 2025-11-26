@@ -10,7 +10,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-fuzzydate = {path = "../fuzzydate" }
+# This is patched in the workspace root to use the local path for development
+fuzzydate = "0.3.0"
 clap = {version = "4.5", features=["derive"]}
 anyhow = "1.0"
 chrono-tz = "0.10.4"

@@ -1879,7 +1879,7 @@ mod tests {
             Lexeme::Num(30),
         ];
 
-        let now = New_York.ymd(2021, 3, 14).and_hms(12, 0, 0);
+        let now = New_York.with_ymd_and_hms(2021, 3, 14, 12, 0, 0).unwrap();
         let (parsed, _) = DateTime::parse(lexemes.as_slice()).unwrap();
         let res = parsed.to_chrono(now);
 
@@ -1903,7 +1903,7 @@ mod tests {
             Lexeme::AM,
         ];
 
-        let now = New_York.ymd(2021, 11, 7).and_hms(12, 0, 0);
+        let now = New_York.with_ymd_and_hms(2021, 11, 7, 12, 0, 0).unwrap();
         let (parsed, _) = DateTime::parse(lexemes.as_slice()).unwrap();
         let res = parsed.to_chrono(now).unwrap();
 
@@ -1936,7 +1936,7 @@ mod tests {
             Lexeme::Num(30),
         ];
 
-        let now = New_York.ymd(2021, 3, 14).and_hms(12, 0, 0);
+        let now = New_York.with_ymd_and_hms(2021, 3, 14, 12, 0, 0).unwrap();
         let (parsed, _) = DateTime::parse(lexemes.as_slice()).unwrap();
         let res = parsed.to_chrono(now).unwrap();
 

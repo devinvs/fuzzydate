@@ -15,7 +15,7 @@ struct Args {
     #[arg(long)]
     debug: bool,
 
-    /// Instant in time that should be considered the current time
+    /// Instant in time that should be considered the current time, formatted as an RFC3339 string
     #[arg(short, long, group = "base", value_parser = parse_datetime)]
     relative_to: Option<chrono::DateTime<FixedOffset>>,
 
