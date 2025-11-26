@@ -34,3 +34,22 @@ fn main() {
     println!("{:?}", date);
 }
 ```
+
+## fuzzydate-cli
+
+This project also provides a small command-line interface for the `fuzzydate` library. This supports parsing any date format suppored by `fuzzydate` into a datetime formatted with a `chrono` format string, for example:
+
+```
+$ fuzzydate 5 minutes after friday at noon
+2025-11-28T12:05:00-08:00
+```
+
+See `fuzzydate --help` for information on supported options.
+
+### Installation
+
+- From crates.io:
+`cargo install fuzzydate-cli`
+
+- From the workspace/source:
+`cargo install --path fuzzydate/fuzzydate-cli`

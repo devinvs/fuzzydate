@@ -1,0 +1,23 @@
+[package]
+name = "fuzzydate-cli"
+description = "Command line interface to the fuzzydate library"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# This is patched in the workspace root to use the local path for development
+fuzzydate = "0.3.0"
+clap = {version = "4.5", features=["derive"]}
+anyhow = "1.0"
+chrono-tz = "0.10.4"
+chrono = { version = "0.4.42", features = ["clock"] }
+iana-time-zone = "0.1.64"
+
+[[bin]]
+name = "fuzzydate"
+path = "src/main.rs"

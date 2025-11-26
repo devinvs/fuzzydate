@@ -7,6 +7,8 @@ lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, Lexeme> = {
         let mut map = HashMap::new();
 
+        map.insert("on", Lexeme::On);
+        map.insert("at", Lexeme::At);
         map.insert("an", Lexeme::An);
         map.insert("after", Lexeme::After);
         map.insert("last", Lexeme::Last);
@@ -112,6 +114,8 @@ lazy_static! {
 pub enum Lexeme {
     A,
     An,
+    On,
+    At,
     The,
     Dash,
     Today,
@@ -196,6 +200,8 @@ pub enum Lexeme {
     Last,
 }
 
+const LEXER_STACK_SIZE: usize = 20;
+
 impl Lexeme {
     /// Lex a string into a list of Lexemes
     pub fn lex_line(s: String) -> Result<Vec<Lexeme>, crate::Error> {
@@ -204,7 +210,7 @@ impl Lexeme {
 
         let mut lexemes = Vec::new(); // List of Lexemes
         let chars = s.chars(); // Character iterator
-        let mut stack = String::with_capacity(10);
+        let mut stack = String::with_capacity(LEXER_STACK_SIZE);
 
         // Convenience closure which takes a reference to our stack
         // and our lexemes, searches our keyword map for the stack,
@@ -233,6 +239,19 @@ impl Lexeme {
             if c.is_whitespace() {
                 push_lexeme(&mut stack, &mut lexemes)?;
                 continue;
+            }
+
+            if stack
+                .chars()
+                .last()
+                // switching from a digit to alpha or alpha to digit is the end of a lexeme
+                .is_some_and(|sc| sc.is_ascii_digit() != c.is_ascii_digit())
+            {
+                push_lexeme(&mut stack, &mut lexemes)?;
+            }
+
+            if stack.len() == LEXER_STACK_SIZE {
+                return Err(crate::Error::ParseError);
             }
 
             match c {
@@ -314,4 +333,13 @@ fn test_complex_relative_date_time() {
 fn test_unknown_token() {
     let input = "Hello World".to_string();
     assert!(Lexeme::lex_line(input).is_err());
+}
+
+#[test]
+fn test_am_without_space() {
+    let input = "10am".to_string();
+    assert_eq!(
+        Ok(vec![Lexeme::Num(10), Lexeme::AM,]),
+        Lexeme::lex_line(input)
+    );
 }
