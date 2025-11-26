@@ -222,7 +222,7 @@ pub enum Error {
 // doesn't show up in the docs
 pub type NaiveOutput = Result<NaiveDateTime, Error>;
 
-/// Parse an input string into a chrono DateTime, using the default
+/// Parse an input string into a chrono NaiveDateTime, using the default
 /// values from the specified default value where not specified
 pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
@@ -264,8 +264,8 @@ pub fn parse(input: impl Into<String>) -> NaiveOutput {
     parse_with_default_time(input, Local::now().time())
 }
 
-/// Parse an input string into a chrono NaiveDateTime with the default
-/// time being now
+/// Parse an input string into a chrono DateTime with the given default time. Defaults to None if
+/// not given. Time is parsed and returned in the given timezone.
 pub fn aware_parse<Tz: TimeZone>(
     input: impl Into<String>,
     relative_to: Option<DateTime<Tz>>,
@@ -283,6 +283,10 @@ pub fn aware_parse<Tz: TimeZone>(
     tree.to_chrono(now)
 }
 
+/// Parse an input string into a chrono DateTime with the given default time. Defaults to None if
+/// not given. Time is parsed and returned in the given timezone. Returns all stages of parsing
+/// for debugging
+#[allow(clippy::type_complexity)]
 pub fn debug_parse<Tz: TimeZone>(
     input: impl Into<String>,
     relative_to: Option<DateTime<Tz>>,
