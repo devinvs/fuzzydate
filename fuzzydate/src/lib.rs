@@ -40,6 +40,7 @@
 //!              | <duration> after <datetime>
 //!              | <duration> from <datetime>
 //!              | <duration> before <datetime>
+//!              | <duration> ago
 //!              | now
 //!
 //! <date> ::= today
