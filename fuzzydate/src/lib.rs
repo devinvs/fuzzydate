@@ -30,33 +30,36 @@
 //! ## Grammar
 //! ```text
 //! <datetime> ::= <time>
-//!              | <date> <time>
-//!              | <date> at <time>
-//!              | <date> , <time>
-//!              | <time> , <date>
-//!              | <time> on <date>
-//!              | <date> at <duration> after <time>
-//!              | <date> at <duration> before <time>
-//!              | <duration> after <datetime>
-//!              | <duration> from <datetime>
-//!              | <duration> before <datetime>
-//!              | <duration> ago
+//!              | <time> , <date_expr>
+//!              | <time> <date_expr>
+//!              | <time> on <date_expr>
+//!              | <date_expr>
+//!              | <date_expr> <time>
+//!              | <date_expr> , <time>
+//!              | <date_expr> at <time>
+//!              | <duration_expr> <datetime>
 //!              | now
 //!
 //! <article> ::= a
 //!            | an
 //!            | the
 //!
+//! <date_expr> ::= <date>
+//!               | <duration> ago              ; duration must be for a whole number of days
+//!               | <duration> after <date>
+//!               | <duration> from <date>
+//!               | <duration> before <date>
+//!               | <relative_specifier> <weekday>
+//!               | <relative_specifier> <unit>
+//!               | <weekday>
+//!
 //! <date> ::= today
 //!          | tomorrow
-//!          | yesterday
 //!          | <num> / <num> / <num>
 //!          | <num> - <num> - <num>
 //!          | <num> . <num> . <num>
 //!          | <month> <num> <num>
-//!          | <relative_specifier> <unit>
-//!          | <relative_specifier> <weekday>
-//!          | <weekday>
+//!
 //!
 //! <relative_specifier> ::= this
 //!                        | next
@@ -111,6 +114,8 @@
 //!          | <num>
 //!          | <num> am
 //!          | <num> pm
+//!          | <num> <num> am
+//!          | <num> <num> pm
 //!          | midnight
 //!          | noon
 //!
@@ -276,6 +281,31 @@ pub fn aware_parse<Tz: TimeZone>(
     let now = relative_to.unwrap_or_else(|| tz.from_utc_datetime(&Local::now().naive_utc()));
 
     tree.to_chrono(now)
+}
+
+pub fn debug_parse<Tz: TimeZone>(
+    input: impl Into<String>,
+    relative_to: Option<DateTime<Tz>>,
+    tz: Tz,
+) -> (
+    Result<Vec<lexer::Lexeme>, Error>,
+    Option<(ast::DateTime, usize)>,
+    Option<Result<DateTime<Tz>, Error>>,
+) {
+    let now = relative_to.unwrap_or_else(|| tz.from_utc_datetime(&Local::now().naive_utc()));
+    let lexemes_result = lexer::Lexeme::lex_line(input.into());
+
+    if let Ok(lexemes) = &lexemes_result {
+        let dt_result = ast::DateTime::parse(lexemes);
+        if let Some((dt, _)) = &dt_result {
+            let chrono_result = dt.to_chrono(now);
+            (lexemes_result, dt_result, Some(chrono_result))
+        } else {
+            (lexemes_result, dt_result, None)
+        }
+    } else {
+        (lexemes_result, None, None)
+    }
 }
 
 #[test]

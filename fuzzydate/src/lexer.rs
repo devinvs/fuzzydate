@@ -199,7 +199,6 @@ pub enum Lexeme {
     Million,
     Billion,
     Last,
-    RFC3339(DateTime<chrono::Utc>),
 }
 
 const LEXER_STACK_SIZE: usize = 20;
@@ -227,10 +226,6 @@ impl Lexeme {
                 Ok(())
             } else if let Ok(num) = stack.parse::<u32>() {
                 ls.push(Lexeme::Num(num));
-                stack.clear();
-                Ok(())
-            } else if let Ok(datetime) = DateTime::parse_from_rfc3339(stack.as_str()) {
-                ls.push(Lexeme::RFC3339(datetime.to_utc()));
                 stack.clear();
                 Ok(())
             } else {
