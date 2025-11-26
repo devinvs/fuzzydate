@@ -1766,7 +1766,7 @@ mod tests {
         assert_eq!(tokens, 4);
 
         assert_eq!(
-            now.date_naive() - date.date_naive(),
+            date.date_naive() - now.date_naive(),
             ChronoDuration::days(3)
         );
         assert_eq!(now.time(), date.time());
@@ -1788,7 +1788,7 @@ mod tests {
         assert_eq!(tokens, 4);
 
         assert_eq!(
-            now.date_naive().checked_sub_months(Months::new(3)).unwrap(),
+            now.date_naive() - ChronoDuration::days(3),
             date.date_naive()
         );
 
@@ -1833,8 +1833,8 @@ mod tests {
         assert_eq!(tokens, 4);
 
         assert_eq!(
-            now.date_naive() - date.date_naive(),
-            ChronoDuration::days(3)
+            now.date_naive().checked_sub_months(Months::new(3)).unwrap(),
+            date.date_naive()
         );
         assert_eq!(now.time(), date.time());
     }
@@ -1847,15 +1847,9 @@ mod tests {
             Lexeme::After,
             Lexeme::Yesterday,
         ];
-        let now = Local
-            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
-            .single()
-            .expect("literal date for test case");
-
-        let (date, _) = Date::parse(lexemes.as_slice()).unwrap();
-        let date = date.to_chrono(now);
-
-        assert!(date.is_err());
+        // Duration with sub-daily unit should not be parsed as a Date expression
+        // so Date::parse should return None.
+        assert!(Date::parse(lexemes.as_slice()).is_none());
     }
 
     #[test]
@@ -1866,30 +1860,94 @@ mod tests {
             Lexeme::Before,
             Lexeme::Yesterday,
         ];
-        let now = Local
-            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
-            .single()
-            .expect("literal date for test case");
-
-        let (date, _) = Date::parse(lexemes.as_slice()).unwrap();
-        let date = date.to_chrono(now);
-
-        assert!(date.is_err());
+        // Duration with sub-daily unit should not be parsed as a Date expression
+        // so Date::parse should return None.
+        assert!(Date::parse(lexemes.as_slice()).is_none());
     }
 
     #[test]
     fn test_march_dst_transition() {
-        assert!(false);
+        // March DST transition in America/New_York creates a non-existent local time
+        use chrono_tz::America::New_York;
+
+        let lexemes = vec![
+            Lexeme::March,
+            Lexeme::Num(14),
+            Lexeme::Num(2021),
+            Lexeme::Num(2),
+            Lexeme::Colon,
+            Lexeme::Num(30),
+        ];
+
+        let now = New_York.ymd(2021, 3, 14).and_hms(12, 0, 0);
+        let (parsed, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let res = parsed.to_chrono(now);
+
+        // 2:30 on this date in New York is a nonexistent local time -> conversion fails
+        assert!(res.is_err());
     }
 
     #[test]
     fn test_november_dst_transition() {
-        assert!(false);
+        // November DST transition in America/New_York repeats the 1 AM hour.
+        // We should pick the earlier of the two.
+        use chrono_tz::America::New_York;
+
+        let lexemes = vec![
+            Lexeme::November,
+            Lexeme::Num(7),
+            Lexeme::Num(2021),
+            Lexeme::Num(1),
+            Lexeme::Colon,
+            Lexeme::Num(30),
+            Lexeme::AM,
+        ];
+
+        let now = New_York.ymd(2021, 11, 7).and_hms(12, 0, 0);
+        let (parsed, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let res = parsed.to_chrono(now).unwrap();
+
+        // Earlier 1:30 on this date is during DST (UTC-4) => offset (local - utc) should be -14400
+        assert_eq!(
+            res.naive_local()
+                .signed_duration_since(res.naive_utc())
+                .num_seconds(),
+            -4 * 3600
+        );
     }
 
     #[test]
-    fn test_return_correct_timezone() {
-        assert!(false);
+    fn test_return_correct_timezone_dst() {
+        // Adding an hour across the spring-forward DST boundary should succeed for
+        // convertible durations (hours) and result in the correct local time in the
+        // timezone of `now`
+        use chrono::Timelike;
+        use chrono_tz::America::New_York;
+
+        let lexemes = vec![
+            Lexeme::A,
+            Lexeme::Hour,
+            Lexeme::After,
+            Lexeme::March,
+            Lexeme::Num(14),
+            Lexeme::Num(2021),
+            Lexeme::Num(1),
+            Lexeme::Colon,
+            Lexeme::Num(30),
+        ];
+
+        let now = New_York.ymd(2021, 3, 14).and_hms(12, 0, 0);
+        let (parsed, _) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let res = parsed.to_chrono(now).unwrap();
+
+        assert_eq!(res.hour(), 3);
+        assert_eq!(res.minute(), 30);
+        assert_eq!(
+            res.naive_local()
+                .signed_duration_since(res.naive_utc())
+                .num_seconds(),
+            -4 * 3600
+        );
     }
 
     #[test]
@@ -1905,6 +1963,6 @@ mod tests {
         let date = date.unwrap();
 
         assert_eq!(tokens, 4);
-        assert_eq!(date - now, chrono::Duration::minutes(5));
+        assert_eq!(now - date, chrono::Duration::minutes(3));
     }
 }

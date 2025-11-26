@@ -10,8 +10,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-chrono = "0.4"
+chrono = { version = "0.4", features = ["clock"] }
 lazy_static = "1.5"
 thiserror = "2.0"
-clap = {version = "4.5", features=["derive"], optional = true}
-anyhow = {version = "1.0", optional = true}
+clap = { version = "4.5", features = ["derive"], optional = true }
+anyhow = { version = "1.0", optional = true }
+
+[dev-dependencies]
+# Add chrono-tz as a dev-dependency so tests can construct timezone-aware datetimes
+# for DST transition and timezone-correctness tests.
+chrono-tz = "0.10.4"
