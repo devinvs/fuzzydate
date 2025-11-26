@@ -343,5 +343,3 @@ fn test_am_without_space() {
         Lexeme::lex_line(input)
     );
 }
-
-// TODO: test stack size error
