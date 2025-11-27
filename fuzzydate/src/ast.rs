@@ -764,7 +764,7 @@ impl Duration {
                 Unit::Day | Unit::Week | Unit::Month | Unit::Year => false,
                 Unit::Hour | Unit::Minute => true,
             },
-            Self::Concat(a, b) => a.is_sub_daily() && b.is_sub_daily(),
+            Self::Concat(a, b) => a.is_sub_daily() || b.is_sub_daily(),
         }
     }
 }
@@ -1964,5 +1964,76 @@ mod tests {
 
         assert_eq!(tokens, 4);
         assert_eq!(now - date, chrono::Duration::minutes(3));
+    }
+
+    #[test]
+    fn test_duration_sub_daily_specific() {
+        assert!(!Duration::Specific(2, Unit::Day).is_sub_daily());
+        assert!(!Duration::Specific(2, Unit::Week).is_sub_daily());
+        assert!(!Duration::Specific(2, Unit::Month).is_sub_daily());
+        assert!(!Duration::Specific(2, Unit::Year).is_sub_daily());
+        assert!(Duration::Specific(2, Unit::Hour).is_sub_daily());
+        assert!(Duration::Specific(2, Unit::Minute).is_sub_daily());
+    }
+
+    #[test]
+    fn test_duration_sub_daily_article() {
+        assert!(!Duration::Article(Unit::Day).is_sub_daily());
+        assert!(!Duration::Article(Unit::Week).is_sub_daily());
+        assert!(!Duration::Article(Unit::Month).is_sub_daily());
+        assert!(!Duration::Article(Unit::Year).is_sub_daily());
+        assert!(Duration::Article(Unit::Hour).is_sub_daily());
+        assert!(Duration::Article(Unit::Minute).is_sub_daily());
+    }
+
+    #[test]
+    fn test_duration_sub_daily_concat() {
+        assert!(!Duration::Concat(
+            Box::new(Duration::Specific(3, Unit::Day)),
+            Box::new(Duration::Specific(1, Unit::Year))
+        )
+        .is_sub_daily());
+
+        assert!(!Duration::Concat(
+            Box::new(Duration::Specific(3, Unit::Day)),
+            Box::new(Duration::Specific(1, Unit::Week))
+        )
+        .is_sub_daily());
+
+        assert!(!Duration::Concat(
+            Box::new(Duration::Specific(3, Unit::Week)),
+            Box::new(Duration::Specific(1, Unit::Year))
+        )
+        .is_sub_daily());
+
+        assert!(!Duration::Concat(
+            Box::new(Duration::Specific(1, Unit::Day)),
+            Box::new(Duration::Concat(
+                Box::new(Duration::Specific(2, Unit::Week)),
+                Box::new(Duration::Specific(3, Unit::Year))
+            ))
+        )
+        .is_sub_daily());
+
+        assert!(Duration::Concat(
+            Box::new(Duration::Specific(3, Unit::Hour)),
+            Box::new(Duration::Specific(1, Unit::Minute))
+        )
+        .is_sub_daily());
+
+        assert!(Duration::Concat(
+            Box::new(Duration::Specific(3, Unit::Day)),
+            Box::new(Duration::Specific(1, Unit::Hour))
+        )
+        .is_sub_daily());
+
+        assert!(Duration::Concat(
+            Box::new(Duration::Specific(1, Unit::Day)),
+            Box::new(Duration::Concat(
+                Box::new(Duration::Specific(2, Unit::Minute)),
+                Box::new(Duration::Specific(3, Unit::Year))
+            ))
+        )
+        .is_sub_daily());
     }
 }

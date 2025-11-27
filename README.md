@@ -1,6 +1,5 @@
 # [FuzzyDate][docsrs]: Date Input for Humans
 
-
 [![FuzzyDate Github Actions][gh-image]][gh-checks]
 [![FuzzyDate on crates.io][cratesio-image]][cratesio]
 [![FuzzyDate on docs.rs][docsrs-image]][docsrs]
@@ -20,8 +19,10 @@ Put this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fuzzydate = "0.2"
+fuzzydate = "0.3"
 ```
+
+See the [fuzzydate crate README](fuzzydate/README.md) for more information.
 
 ## Example
 
@@ -37,19 +38,22 @@ fn main() {
 
 ## fuzzydate-cli
 
-This project also provides a small command-line interface for the `fuzzydate` library. This supports parsing any date format suppored by `fuzzydate` into a datetime formatted with a `chrono` format string, for example:
+This project also provides a small command-line interface for the `fuzzydate` library. See the crate-level READMEs for more information and examples:
 
-```
+* Library (fuzzydate): [fuzzydate/README.md](fuzzydate/README.md)
+* CLI (fuzzydate-cli): [fuzzydate-cli/README.md](fuzzydate-cli/README.md)
+
+The CLI parses human-friendly date expressions and prints a `chrono`-formatted datetime. For example:
+
+```sh
 $ fuzzydate 5 minutes after friday at noon
 2025-11-28T12:05:00-08:00
 ```
 
-See `fuzzydate --help` for information on supported options.
+See `fuzzydate --help` for options and usage.
 
 ### Installation
 
-- From crates.io:
-`cargo install fuzzydate-cli`
-
-- From the workspace/source:
-`cargo install --path fuzzydate/fuzzydate-cli`
+```sh
+cargo install fuzzydate-cli --locked
+```
