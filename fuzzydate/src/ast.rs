@@ -764,7 +764,7 @@ impl Duration {
                 Unit::Day | Unit::Week | Unit::Month | Unit::Year => false,
                 Unit::Hour | Unit::Minute => true,
             },
-            Self::Concat(a, b) => a.is_sub_daily() && b.is_sub_daily(),
+            Self::Concat(a, b) => a.is_sub_daily() || b.is_sub_daily(),
         }
     }
 }
