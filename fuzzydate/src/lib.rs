@@ -225,6 +225,7 @@ pub type NaiveOutput = Result<NaiveDateTime, Error>;
 
 /// Parse an input string into a chrono NaiveDateTime, using the default
 /// values from the specified default value where not specified
+#[deprecated = "superseded by parse_relative_to"]
 pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, tokens) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
@@ -241,9 +242,8 @@ pub fn parse_with_default_time(input: impl Into<String>, default: NaiveTime) -> 
     tree.to_chrono(now).map(|dt| dt.naive_local())
 }
 
-/// Parse an input string into a chrono NaiveDateTime, treating the default as
-/// if it was the current time.
-pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> NaiveOutput {
+/// Parse an input string into a chrono NaiveDateTime, using relative_to as the current time.
+pub fn parse_relative_to(input: impl Into<String>, relative_to: NaiveDateTime) -> NaiveOutput {
     let lexemes = lexer::Lexeme::lex_line(input.into())?;
     let (tree, tokens) = ast::DateTime::parse(lexemes.as_slice()).ok_or(Error::ParseError)?;
 
@@ -251,7 +251,7 @@ pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> Na
         return Err(crate::Error::ParseError);
     };
 
-    let now = default
+    let now = relative_to
         .and_local_timezone(Local)
         .earliest()
         .ok_or(crate::Error::ParseError)?;
@@ -259,14 +259,12 @@ pub fn parse_relative_to(input: impl Into<String>, default: NaiveDateTime) -> Na
     tree.to_chrono(now).map(|dt| dt.naive_local())
 }
 
-/// Parse an input string into a chrono NaiveDateTime with the default
-/// time being now
+/// Parse an input string into a chrono NaiveDateTime using the system local time for any missing values.
 pub fn parse(input: impl Into<String>) -> NaiveOutput {
-    parse_with_default_time(input, Local::now().time())
+    parse_relative_to(input, Local::now().naive_local())
 }
 
-/// Parse an input string into a chrono DateTime with the given default time. Defaults to None if
-/// not given. Time is parsed and returned in the given timezone.
+/// Parse an input string into a timezone-aware chrono DateTime using the given time and timezone.
 pub fn aware_parse<Tz: TimeZone>(
     input: impl Into<String>,
     relative_to: Option<DateTime<Tz>>,
@@ -279,7 +277,9 @@ pub fn aware_parse<Tz: TimeZone>(
         return Err(crate::Error::ParseError);
     };
 
-    let now = relative_to.unwrap_or_else(|| tz.from_utc_datetime(&Local::now().naive_utc()));
+    let now = relative_to
+        .unwrap_or_else(|| tz.from_utc_datetime(&Local::now().naive_utc()))
+        .with_timezone(&tz);
 
     tree.to_chrono(now)
 }
