@@ -11,7 +11,7 @@
 [docsrs-image]: https://docs.rs/fuzzydate/badge.svg
 [docsrs]: https://docs.rs/fuzzydate
 
-A natural language datetime library for rust.
+A flexible date parser library for Rust.
 
 ## Usage
 
