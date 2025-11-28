@@ -38,12 +38,14 @@ fn main() {
 
 ## fuzzydate-cli
 
-This project also provides a small command-line interface for the `fuzzydate` library. See the crate-level READMEs for more information and examples:
+This project also provides a small command-line interface for the `fuzzydate` library. See the
+crate-level READMEs for more information and examples:
 
 * Library (fuzzydate): [fuzzydate/README.md](fuzzydate/README.md)
 * CLI (fuzzydate-cli): [fuzzydate-cli/README.md](fuzzydate-cli/README.md)
 
-The CLI parses human-friendly date expressions and prints a `chrono`-formatted datetime. For example:
+The CLI parses human-friendly date expressions and prints a `chrono`-formatted datetime. For
+example:
 
 ```sh
 $ fuzzydate 5 minutes after friday at noon
@@ -57,3 +59,9 @@ See `fuzzydate --help` for options and usage.
 ```sh
 cargo install fuzzydate-cli --locked
 ```
+
+
+## Contributing
+
+Issues and contributions are welcome! Please open issues for bugs or desired features with a short
+description of the desired/expected behavior.
