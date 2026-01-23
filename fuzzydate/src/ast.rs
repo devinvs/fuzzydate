@@ -365,21 +365,36 @@ impl Date {
             Self::Relative(spec, day) => {
                 let day = day.to_chrono();
                 let mut today = now.date_naive();
+                let this_week = today.iso_week();
 
                 match spec {
                     RelativeSpecifier::Next => {
-                        today += ChronoDuration::weeks(1);
+                        while today.iso_week() == this_week {
+                            today += ChronoDuration::days(1);
+                        }
+
+                        while today.weekday() != day {
+                            today += ChronoDuration::days(1);
+                        }
                     }
                     RelativeSpecifier::Last => {
-                        today -= ChronoDuration::weeks(1);
+                        while today.iso_week() == this_week {
+                            today -= ChronoDuration::days(1);
+                        }
+                        while today.weekday() != day {
+                            today -= ChronoDuration::days(1);
+                        }
                     }
                     RelativeSpecifier::This => {
-                        // No modification necessary
-                    }
-                }
+                        while today.iso_week() == this_week {
+                            today -= ChronoDuration::days(1);
+                        }
+                        today += ChronoDuration::days(1);
 
-                while today.weekday() != day {
-                    today += ChronoDuration::days(1);
+                        while today.weekday() != day {
+                            today += ChronoDuration::days(1);
+                        }
+                    }
                 }
 
                 today
