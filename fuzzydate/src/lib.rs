@@ -43,6 +43,7 @@
 //!              | <duration> ago
 //!              | now
 //!
+//! TODO: fancy relative specifiers like "january 24th next year"
 //! <date> ::= today
 //!               | tomorrow
 //!               | yesterday
