@@ -368,6 +368,8 @@ impl Date {
                 let this_week = today.iso_week();
 
                 match spec {
+                    // iterate to the beginning or end of the correct week, then iterate through
+                    // the week to the correct day
                     RelativeSpecifier::Next => {
                         while today.iso_week() == this_week {
                             today += ChronoDuration::days(1);
