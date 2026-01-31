@@ -152,10 +152,13 @@ impl DateTime {
 #[derive(Debug, Eq, PartialEq)]
 /// A Parsed Date
 pub enum Date {
+    YearMonthNumDay(u32, u32, u32),
     MonthNumDayYear(u32, u32, u32),
+    DayMonthYear(u32, Month, u32),
     MonthDayYear(Month, u32, u32),
     MonthNumDay(u32, u32),
     MonthDay(Month, u32),
+    DayMonth(u32, Month),
     Today,
     Tomorrow,
     Yesterday,
@@ -189,6 +192,20 @@ impl Date {
         }
 
         tokens = 0;
+        if let Some((day, t)) = Num::parse(&l[tokens..]) {
+            tokens += t;
+            if let Some((month, t)) = Month::parse(&l[tokens..]) {
+                tokens += t;
+                if let Some((year, t)) = Num::parse(&l[tokens..]) {
+                    tokens += t;
+                    return Some((Self::DayMonthYear(day, month, year), tokens));
+                }
+
+                return Some((Self::DayMonth(day, month), tokens));
+            }
+        }
+
+        tokens = 0;
         if let Some((month, t)) = Month::parse(&l[tokens..]) {
             tokens += t;
 
@@ -203,7 +220,6 @@ impl Date {
             return Some((Self::MonthDay(month, day), tokens));
         }
 
-        // TODO: year month day
         tokens = 0;
         if let Some((num1, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
@@ -220,6 +236,10 @@ impl Date {
 
                             let (num3, t) = Num::parse(&l[tokens..])?;
                             tokens += t;
+
+                            if num1 > 1000 {
+                                return Some((Self::YearMonthNumDay(num1, num2, num3), tokens));
+                            }
 
                             // If delim is dot use DMY, otherwise MDY
                             if delim == &Lexeme::Dot {
@@ -313,7 +333,7 @@ impl Date {
                 .ok_or(crate::Error::InvalidDate(format!(
                 "Invalid month-day: {month}-{day}"
             )))?,
-            Self::MonthNumDayYear(month, day, year) => {
+            Self::MonthNumDayYear(month, day, year) | Self::YearMonthNumDay(year, month, day) => {
                 let curr = today.year() as u32;
                 let year = if *year < 100 {
                     if curr + 10 < 2000 + *year {
@@ -331,13 +351,13 @@ impl Date {
                     )),
                 )?
             }
-            Self::MonthDay(month, day) => {
+            Self::MonthDay(month, day) | Self::DayMonth(day, month) => {
                 let month = *month as u32;
                 ChronoDate::from_ymd_opt(today.year(), month, *day).ok_or(
                     crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
                 )?
             }
-            Self::MonthDayYear(month, day, year) => {
+            Self::MonthDayYear(month, day, year) | Self::DayMonthYear(day, month, year) => {
                 ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day).ok_or(
                     crate::Error::InvalidDate(format!(
                         "Invalid year-month-day: {}-{}-{}",
