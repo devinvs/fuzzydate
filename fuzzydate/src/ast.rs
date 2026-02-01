@@ -158,7 +158,7 @@ pub enum Date {
     MonthDayYear(Month, u32, u32),
     MonthNumDay(u32, u32),
     MonthDay(Month, u32),
-    DayMonth(u32, Month),
+    MonthYear(Month, u32),
     Today,
     Tomorrow,
     Yesterday,
@@ -200,8 +200,6 @@ impl Date {
                     tokens += t;
                     return Some((Self::DayMonthYear(day, month, year), tokens));
                 }
-
-                return Some((Self::DayMonth(day, month), tokens));
             }
         }
 
@@ -209,15 +207,18 @@ impl Date {
         if let Some((month, t)) = Month::parse(&l[tokens..]) {
             tokens += t;
 
-            let (day, t) = Num::parse(&l[tokens..])?;
+            let (num, t) = Num::parse(&l[tokens..])?;
             tokens += t;
 
             if let Some((year, t)) = Num::parse(&l[tokens..]) {
                 tokens += t;
-                return Some((Self::MonthDayYear(month, day, year), tokens));
+                return Some((Self::MonthDayYear(month, num, year), tokens));
             }
 
-            return Some((Self::MonthDay(month, day), tokens));
+            if num > 1000 {
+                return Some((Self::MonthYear(month, num), tokens));
+            }
+            return Some((Self::MonthDay(month, num), tokens));
         }
 
         tokens = 0;
@@ -351,10 +352,16 @@ impl Date {
                     )),
                 )?
             }
-            Self::MonthDay(month, day) | Self::DayMonth(day, month) => {
+            Self::MonthDay(month, day) => {
                 let month = *month as u32;
                 ChronoDate::from_ymd_opt(today.year(), month, *day).ok_or(
                     crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
+                )?
+            }
+            Self::MonthYear(month, year) => {
+                let month = *month as u32;
+                ChronoDate::from_ymd_opt(*year as i32, month, today.day()).ok_or(
+                    crate::Error::InvalidDate(format!("Invalid month-year: {month}-{year}")),
                 )?
             }
             Self::MonthDayYear(month, day, year) | Self::DayMonthYear(day, month, year) => {
@@ -1366,6 +1373,74 @@ mod tests {
         assert_eq!(date.year(), now.year() - 1);
         assert_eq!(date.month(), 12);
         assert_eq!(date.day(), 5);
+    }
+
+    #[test]
+    fn test_month_day() {
+        let l = vec![Lexeme::February, Lexeme::Num(5)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 2);
+        assert_eq!(date.year(), now.year());
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test]
+    fn test_month_year() {
+        let l = vec![Lexeme::February, Lexeme::Num(2027)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 17, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 2);
+        assert_eq!(date.year(), 2027);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), now.day());
+    }
+
+    #[test]
+    fn test_month_day_year() {
+        let l = vec![Lexeme::February, Lexeme::Num(5), Lexeme::Num(2024)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 3);
+        assert_eq!(date.year(), 2024);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test]
+    fn test_day_month_year() {
+        let l = vec![Lexeme::Num(17), Lexeme::February, Lexeme::Num(2027)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 3);
+        assert_eq!(date.year(), 2027);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 17);
     }
 
     #[test]
