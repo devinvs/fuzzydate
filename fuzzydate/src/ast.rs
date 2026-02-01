@@ -1732,6 +1732,46 @@ mod tests {
     }
 
     #[test]
+    fn test_slash_separated_date_year_first() {
+        let lexemes = vec![
+            Lexeme::Num(2023),
+            Lexeme::Slash,
+            Lexeme::Num(12),
+            Lexeme::Slash,
+            Lexeme::Num(5),
+        ];
+
+        let now = Local::now();
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
+    }
+
+    #[test]
+    fn test_dot_separated_date_year_first() {
+        let lexemes = vec![
+            Lexeme::Num(2023),
+            Lexeme::Dot,
+            Lexeme::Num(12),
+            Lexeme::Dot,
+            Lexeme::Num(5),
+        ];
+
+        let now = Local::now();
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
+    }
+
+    #[test]
     fn test_dot_separated_date_invalid_month() {
         let lexemes = vec![
             Lexeme::Num(19),
