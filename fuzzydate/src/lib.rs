@@ -51,6 +51,8 @@
 //!               | <num> . <num> . <num>  ; D[D] . M[M] . Y[Y][YY]
 //!               | <month> <num> <num>
 //!               | <num> <month> <num>
+//!               | <month> <num>     ; month year if num > 1000, otherwise month day
+//!               | <num> <month>     ; day month
 //!               | <duration> ago              ; duration must be for a whole number of days
 //!               | <duration> after <date>
 //!               | <duration> from <date>
