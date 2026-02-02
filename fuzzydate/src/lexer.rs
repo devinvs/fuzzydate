@@ -99,47 +99,12 @@ lazy_static! {
         map.insert("thousand", Lexeme::Thousand);
         map.insert("million", Lexeme::Million);
         map.insert("billion", Lexeme::Billion);
-        map.insert("first", Lexeme::One);
-        map.insert("second", Lexeme::Two);
-        map.insert("third", Lexeme::Three);
-        map.insert("fourth", Lexeme::Four);
-        map.insert("fifth", Lexeme::Five);
-        map.insert("sixth", Lexeme::Six);
-        map.insert("seventh", Lexeme::Seven);
-        map.insert("eigth", Lexeme::Eight);
-        map.insert("ninth", Lexeme::Nine);
-        map.insert("tenth", Lexeme::Ten);
-        map.insert("eleventh", Lexeme::Eleven);
-        map.insert("twelfth", Lexeme::Twelve);
-        map.insert("thirteenth", Lexeme::Thirteen);
-        map.insert("fourteenth", Lexeme::Fourteen);
-        map.insert("fifteenth", Lexeme::Fifteen);
-        map.insert("sixteenth", Lexeme::Sixteen);
-        map.insert("seventeenth", Lexeme::Seventeen);
-        map.insert("eighteenth", Lexeme::Eighteen);
-        map.insert("nineteenth", Lexeme::Nineteen);
-        map.insert("twentieth", Lexeme::Twenty);
-        map.insert("thirtieth", Lexeme::Thirty);
-        map.insert("fourtieth", Lexeme::Fourty);
-        map.insert("fiftieth", Lexeme::Fifty);
-        map.insert("sixtieth", Lexeme::Sixty);
-        map.insert("seventieth", Lexeme::Seventy);
-        map.insert("eightieth", Lexeme::Eighty);
-        map.insert("ninetieth", Lexeme::Ninety);
-        map.insert("hundredth", Lexeme::Hundred);
-        map.insert("thousandth", Lexeme::Thousand);
-        map.insert("millionth", Lexeme::Million);
-        map.insert("billionth", Lexeme::Billion);
         map.insert("before", Lexeme::Before);
         map.insert("ago", Lexeme::Ago);
         map.insert("midnight", Lexeme::Midnight);
         map.insert("noon", Lexeme::Noon);
         map.insert("a", Lexeme::A);
         map.insert("the", Lexeme::The);
-        map.insert("nd", Lexeme::ND);
-        map.insert("st", Lexeme::ST);
-        map.insert("rd", Lexeme::RD);
-        map.insert("th", Lexeme::RD);
 
         map
     };
@@ -235,12 +200,6 @@ pub enum Lexeme {
     Million,
     Billion,
     Last,
-
-    // Suffixes
-    ST,
-    ND,
-    RD,
-    TH,
 }
 
 const LEXER_STACK_SIZE: usize = 20;
