@@ -162,8 +162,8 @@ pub enum DateExpr {
     RelativeWeekday(RelativeSpecifier, Weekday),
     WeekdayRelative(Weekday, RelativeSpecifier, Unit),
     // Tuesday in two weeks
-    WeekdayExpresssionAfter(Weekday, Duration),
-    WeekdayExpresssionBefore(Weekday, Duration),
+    WeekdayExpressionAfter(Weekday, Duration),
+    WeekdayExpressionBefore(Weekday, Duration),
     Before(Duration, Date),
     After(Duration, Date),
     // the next instance of this week day, might be in the current or next week
@@ -178,6 +178,11 @@ impl DateExpr {
 
         if let Some((date, t)) = Date::parse(&l[tokens..]) {
             tokens += t;
+            // stash the tokens here, if we fail to parse a more complex expression
+            // we'll return the date and continue parsing, but we might have
+            // a dirty token state by the time we get to return
+            let date_tokens = tokens;
+
             if let Some((spec, t)) = RelativeSpecifier::parse(&l[tokens..]) {
                 tokens += t;
                 if let Some((unit, t)) = Unit::parse(&l[tokens..]) {
@@ -186,18 +191,21 @@ impl DateExpr {
                 }
             } else if let Some((duration, t)) = Duration::parse(&l[tokens..]) {
                 tokens += t;
-                // TODO
-                if l.get(tokens) == Some(&Lexeme::Ago) {
+
+                if l.get(tokens) == Some(&Lexeme::Ago) && !duration.is_sub_daily() {
                     tokens += 1;
-                    return Some((Self::Before(duration, Date::Empty), tokens));
+                    return Some((Self::DateExpressionBefore(date, duration), tokens));
                 }
-                return Some((Self::DateExpression(date, duration), tokens));
-            } else if let Some(Lexeme::In) tokens.first()
+            } else if let Some(Lexeme::In) = l.first() {
                 tokens += 1;
-                return Some((Self::DateExpression(date, duration), tokens));
-            } else {
-                return Some((Self::Date(date), tokens));
+                if let Some((duration, t)) = Duration::parse(&l[tokens..]) {
+                    if !duration.is_sub_daily() {
+                        tokens += t;
+                        return Some((Self::DateExpressionAfter(date, duration), tokens));
+                    }
+                }
             }
+            return Some((Self::Date(date), date_tokens));
         }
 
         tokens = 0;
@@ -236,6 +244,36 @@ impl DateExpr {
             }
 
             return None;
+        }
+
+        tokens = 0;
+        if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
+            tokens += t;
+
+            if let Some((relspec, t)) = RelativeSpecifier::parse(&l[tokens..]) {
+                tokens += t;
+                if let Some((unit, t)) = Unit::parse(&l[tokens..]) {
+                    tokens += t;
+                    return Some((Self::WeekdayRelative(weekday, relspec, unit), tokens));
+                }
+            } else if let Some((duration, t)) = Duration::parse(&l[tokens..]) {
+                tokens += t;
+
+                if l.get(tokens) == Some(&Lexeme::Ago) && !duration.is_sub_daily() {
+                    tokens += 1;
+                    return Some((Self::WeekdayExpressionBefore(weekday, duration), tokens));
+                }
+            } else if let Some(Lexeme::In) = l.first() {
+                tokens += 1;
+                if let Some((duration, t)) = Duration::parse(&l[tokens..]) {
+                    if !duration.is_sub_daily() {
+                        tokens += t;
+                        return Some((Self::WeekdayExpressionBefore(weekday, duration), tokens));
+                    }
+                }
+            }
+
+            return Some((Self::Weekday(weekday), tokens));
         }
 
         tokens = 0;
@@ -278,20 +316,6 @@ impl DateExpr {
                     }
                 }
             }
-            Self::RelativeExpression(date, relspec, unit) => {
-                // This only supports a narrow range of combinations. It's
-                // meant for expressions like "Tuesday next week" or
-                // "January 24th next year". This branch only supports those
-                // cases and doesn't try to handle all combinations
-                match unit {
-                    Unit::Week => {}
-                    Unit::Year => {}
-                    _ => {
-                        return Err(crate::Error::ParseError);
-                    }
-                }
-                return Err(crate::Error::ParseError);
-            }
 
             Self::RelativeWeekday(spec, day) => {
                 let day = day.to_chrono();
@@ -315,6 +339,17 @@ impl DateExpr {
 
                 today
             }
+            Self::Weekday(day) => {
+                let day = day.to_chrono();
+                let mut today = now.date_naive();
+
+                while today.weekday() != day {
+                    today += ChronoDuration::days(1);
+                }
+
+                today
+            }
+
             Self::Empty => now.date_naive(),
         })
     }
@@ -406,12 +441,6 @@ impl Date {
             }
         }
 
-        tokens = 0;
-        if let Some((weekday, t)) = Weekday::parse(&l[tokens..]) {
-            tokens += t;
-            return Some((Self::Weekday(weekday), tokens));
-        }
-
         None
     }
 
@@ -456,16 +485,6 @@ impl Date {
                         *year, *month as u32, *day
                     )),
                 )?
-            }
-            Self::Weekday(day) => {
-                let day = day.to_chrono();
-                let mut today = now.date_naive();
-
-                while today.weekday() != day {
-                    today += ChronoDuration::days(1);
-                }
-
-                today
             }
             Self::Empty => now.date_naive(),
         })
