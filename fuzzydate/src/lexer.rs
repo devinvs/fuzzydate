@@ -10,6 +10,7 @@ lazy_static! {
         map.insert("on", Lexeme::On);
         map.insert("at", Lexeme::At);
         map.insert("an", Lexeme::An);
+        map.insert("in", Lexeme::In);
         map.insert("after", Lexeme::After);
         map.insert("last", Lexeme::Last);
         map.insert("this", Lexeme::This);
@@ -150,6 +151,7 @@ pub enum Lexeme {
     A,
     An,
     On,
+    In,
     At,
     The,
     Dash,

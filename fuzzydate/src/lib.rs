@@ -29,28 +29,22 @@
 //!
 //! ## Grammar
 //! ```text
+//! ; TODO: in <num> <duration>
 //! <datetime> ::= <time>
-//!              | <time> , <date>
-//!              | <time> <date>
-//!              | <time> on <date>
-//!              | <date>
-//!              | <date> <time>
-//!              | <date> , <time>
-//!              | <date> at <time>
+//!              | <time> , <date_expr>
+//!              | <time> <date_expr>
+//!              | <date_expr>
+//!              | <date_expr> <time>
+//!              | <date_expr> , <time>
+//!              | <date_expr> at <time>
 //!              | <duration> after <datetime>
 //!              | <duration> from <datetime>
 //!              | <duration> before <datetime>
 //!              | <duration> ago
 //!              | now
 //!
-//! TODO: fancy relative specifiers like "january 24th next year"
-//! <date> ::= today
-//!               | tomorrow
-//!               | yesterday
-//!               | <num> / <num> / <num>
-//!               | <num> - <num> - <num>
-//!               | <num> . <num> . <num>
-//!               | <month> <num> <num>
+//! <date_expr> ::= <date>
+//!               | <date> <relative_specifier> <unit>
 //!               | <duration> ago              ; duration must be for a whole number of days
 //!               | <duration> after <date>
 //!               | <duration> from <date>
@@ -58,6 +52,14 @@
 //!               | <relative_specifier> <weekday>
 //!               | <relative_specifier> <unit>
 //!               | <weekday>
+//!
+//! <date> ::= today
+//!          | tomorrow
+//!          | yesterday
+//!          | <num> / <num> / <num>
+//!          | <num> - <num> - <num>
+//!          | <num> . <num> . <num>
+//!          | <month> <num> <num>
 //!
 //! <time> ::= <num>
 //!          | <num>:<num>
@@ -71,14 +73,13 @@
 //!          | midnight
 //!          | noon
 //!
-//! <duration> ::= <num> <unit>
+//! <duration> ::= <num> <uni>
 //!              | <article> <unit>
 //!              | <duration> and <duration>
 //!
 //! <article> ::= a
-//!            | an
-//!            | the
-//!
+//!             | an
+//!             | the
 //!
 //! <relative_specifier> ::= this
 //!                        | next
