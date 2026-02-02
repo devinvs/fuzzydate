@@ -797,72 +797,67 @@ struct Ones;
 
 impl Ones {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        let mut res = match l.first() {
-            Some(Lexeme::One) => Some(1),
-            Some(Lexeme::Two) => Some(2),
-            Some(Lexeme::Three) => Some(3),
-            Some(Lexeme::Four) => Some(4),
-            Some(Lexeme::Five) => Some(5),
-            Some(Lexeme::Six) => Some(6),
-            Some(Lexeme::Seven) => Some(7),
-            Some(Lexeme::Eight) => Some(8),
-            Some(Lexeme::Nine) => Some(9),
-            _ => None,
-        };
-
-        if res.is_none() {
-            if let Some(Lexeme::Num(n)) = l.first() {
-                if *n < 10 {
-                    res = Some(*n);
-                }
-            }
+        let mut tokens = 1; // starting at 1 because we'll either match one token or return None
+        if let Some(Lexeme::ST | Lexeme::RD | Lexeme::ND | Lexeme::TH) = l.get(1) {
+            tokens += 1;
         }
-
-        res.map(|n| (n, 1))
+        match l.first() {
+            Some(Lexeme::One) => Some((1, tokens)),
+            Some(Lexeme::Two) => Some((2, tokens)),
+            Some(Lexeme::Three) => Some((3, tokens)),
+            Some(Lexeme::Four) => Some((4, tokens)),
+            Some(Lexeme::Five) => Some((5, tokens)),
+            Some(Lexeme::Six) => Some((6, tokens)),
+            Some(Lexeme::Seven) => Some((7, tokens)),
+            Some(Lexeme::Eight) => Some((8, tokens)),
+            Some(Lexeme::Nine) => Some((9, tokens)),
+            Some(Lexeme::Num(num)) if *num < 10 => Some((*num, tokens)),
+            _ => None,
+        }
     }
 }
 
 struct Teens;
 impl Teens {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
-        let mut res = match l.first() {
-            Some(Lexeme::Ten) => Some((10, 1)),
-            Some(Lexeme::Eleven) => Some((11, 1)),
-            Some(Lexeme::Twelve) => Some((12, 1)),
-            Some(Lexeme::Thirteen) => Some((13, 1)),
-            Some(Lexeme::Fourteen) => Some((14, 1)),
-            Some(Lexeme::Fifteen) => Some((15, 1)),
-            Some(Lexeme::Sixteen) => Some((16, 1)),
-            Some(Lexeme::Seventeen) => Some((17, 1)),
-            Some(Lexeme::Eighteen) => Some((18, 1)),
-            Some(Lexeme::Nineteen) => Some((19, 1)),
-            _ => None,
-        };
-
-        if res.is_none() {
-            if let Some(Lexeme::Num(n)) = l.first() {
-                if *n >= 10 && *n <= 19 {
-                    res = Some((*n, 1));
-                }
-            }
+        let mut tokens = 1;
+        if let Some(Lexeme::TH) = l.get(1) {
+            tokens += 1;
         }
-
-        res
+        match l.first() {
+            Some(Lexeme::Ten) => Some((10, tokens)),
+            Some(Lexeme::Eleven) => Some((11, tokens)),
+            Some(Lexeme::Twelve) => Some((12, tokens)),
+            Some(Lexeme::Thirteen) => Some((13, tokens)),
+            Some(Lexeme::Fourteen) => Some((14, tokens)),
+            Some(Lexeme::Fifteen) => Some((15, tokens)),
+            Some(Lexeme::Sixteen) => Some((16, tokens)),
+            Some(Lexeme::Seventeen) => Some((17, tokens)),
+            Some(Lexeme::Eighteen) => Some((18, tokens)),
+            Some(Lexeme::Nineteen) => Some((19, tokens)),
+            Some(Lexeme::Num(num)) if *num >= 10 && *num < 20 => Some((*num, tokens)),
+            _ => None,
+        }
     }
 }
 
 struct Tens;
 impl Tens {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
+        let mut tokens = 1; // starting at 1 because we'll either match one token or return None
+        if let Some(Lexeme::TH) = l.get(1) {
+            tokens += 1;
+        }
+
         match l.first() {
-            Some(Lexeme::Twenty) => Some((20, 1)),
-            Some(Lexeme::Thirty) => Some((30, 1)),
-            Some(Lexeme::Fourty) => Some((40, 1)),
-            Some(Lexeme::Fifty) => Some((50, 1)),
-            Some(Lexeme::Sixty) => Some((60, 1)),
-            Some(Lexeme::Seventy) => Some((70, 1)),
-            Some(Lexeme::Eighty) => Some((80, 1)),
-            Some(Lexeme::Ninety) => Some((90, 1)),
+            Some(Lexeme::Twenty) => Some((20, tokens)),
+            Some(Lexeme::Thirty) => Some((30, tokens)),
+            Some(Lexeme::Fourty) => Some((40, tokens)),
+            Some(Lexeme::Fifty) => Some((50, tokens)),
+            Some(Lexeme::Sixty) => Some((60, tokens)),
+            Some(Lexeme::Seventy) => Some((70, tokens)),
+            Some(Lexeme::Eighty) => Some((80, tokens)),
+            Some(Lexeme::Ninety) => Some((90, tokens)),
             _ => None,
         }
     }
@@ -913,7 +908,6 @@ struct NumTriple;
 impl NumTriple {
     fn parse(l: &[Lexeme]) -> Option<(u32, usize)> {
         let mut tokens = 0;
-
         if let Some((ones, t)) = Ones::parse(&l[tokens..]) {
             tokens += t;
 
@@ -960,14 +954,17 @@ impl NumTriple {
             return Some((num_double, tokens));
         }
 
-        tokens = 0;
-        if let Some(&Lexeme::Num(n)) = l.get(tokens) {
+        // number literal
+        if let Some(Lexeme::Num(num)) = l.first() {
             tokens += 1;
-            if n > 99 && n < 1000 {
-                return Some((n, tokens));
+            if let Some(Lexeme::ST | Lexeme::RD | Lexeme::ND | Lexeme::TH) = l.get(1) {
+                tokens += 1;
+            }
+
+            if *num > 99 && *num < 1000 {
+                return Some((*num, tokens));
             }
         }
-
         None
     }
 }
@@ -1039,7 +1036,8 @@ impl Num {
         }
 
         tokens = 0;
-        // NUM
+
+        // number literal
         if let Some(&Lexeme::Num(n)) = l.get(tokens) {
             tokens += 1;
             if n >= 1000 {
