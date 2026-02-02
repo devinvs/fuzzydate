@@ -167,7 +167,6 @@ pub enum DateExpr {
     Before(Duration, Date),
     After(Duration, Date),
     // the next instance of this week day, might be in the current or next week
-    // TODO: remove from Date
     Weekday(Weekday),
     Empty,
 }
@@ -196,7 +195,7 @@ impl DateExpr {
                     tokens += 1;
                     return Some((Self::DateExpressionBefore(date, duration), tokens));
                 }
-            } else if let Some(Lexeme::In) = l.first() {
+            } else if let Some(Lexeme::In) = l[tokens..].first() {
                 tokens += 1;
                 if let Some((duration, t)) = Duration::parse(&l[tokens..]) {
                     if !duration.is_sub_daily() {
@@ -263,7 +262,7 @@ impl DateExpr {
                     tokens += 1;
                     return Some((Self::WeekdayExpressionBefore(weekday, duration), tokens));
                 }
-            } else if let Some(Lexeme::In) = l.first() {
+            } else if let Some(Lexeme::In) = l[tokens..].first() {
                 tokens += 1;
                 if let Some((duration, t)) = Duration::parse(&l[tokens..]) {
                     if !duration.is_sub_daily() {
@@ -299,6 +298,58 @@ impl DateExpr {
     fn to_chrono<Tz: TimeZone>(&self, now: ChronoDateTime<Tz>) -> Result<ChronoDate, crate::Error> {
         Ok(match self {
             Self::Date(date) => return date.to_chrono(now),
+            Self::DateRelative(date, relspec, unit) => {
+                if !matches!(unit, Unit::Year) {
+                    return Err(crate::Error::ParseError);
+                }
+
+                let parsed_date = match date {
+                    Date::MonthNumDayYear(_, _, _)
+                    | Date::MonthDayYear(_, _, _)
+                    | Date::Today
+                    | Date::Tomorrow
+                    | Date::Yesterday => {
+                        return Err(crate::Error::ParseError);
+                    }
+                    Date::MonthNumDay(_, _) => date.to_chrono(now)?,
+                    Date::MonthDay(_, _) => date.to_chrono(now)?,
+                    Date::Empty => now.date_naive(),
+                };
+
+                match relspec {
+                    RelativeSpecifier::This => parsed_date,
+                    RelativeSpecifier::Next => {
+                        Duration::Specific(1, *unit).after_date(parsed_date)?
+                    }
+                    RelativeSpecifier::Last => {
+                        Duration::Specific(1, *unit).before_date(parsed_date)?
+                    }
+                }
+            }
+            Self::WeekdayExpressionAfter(weekday, duration) => {
+                let day = weekday.to_chrono();
+                let mut today = duration.after(now).date_naive();
+                while today.weekday() != day {
+                    today += ChronoDuration::days(1);
+                }
+
+                today
+            }
+            Self::WeekdayExpressionBefore(weekday, duration) => {
+                let day = weekday.to_chrono();
+                let mut today = duration.before(now).date_naive();
+                while today.weekday() != day {
+                    today -= ChronoDuration::days(1);
+                }
+
+                today
+            }
+            Self::DateExpressionAfter(date, duration) => {
+                duration.after_date(date.to_chrono(now)?)?
+            }
+            Self::DateExpressionBefore(date, duration) => {
+                duration.before_date(date.to_chrono(now)?)?
+            }
             Self::Before(dur, date) => dur.before_date(date.to_chrono(now)?)?,
             Self::After(dur, date) => dur.after_date(date.to_chrono(now)?)?,
             Self::UnitRelative(spec, unit) => {
@@ -316,12 +367,36 @@ impl DateExpr {
                     }
                 }
             }
-
             Self::RelativeWeekday(spec, day) => {
                 let day = day.to_chrono();
                 let mut today = now.date_naive();
 
                 match spec {
+                    RelativeSpecifier::Next => {
+                        today += ChronoDuration::weeks(1);
+                    }
+                    RelativeSpecifier::Last => {
+                        today -= ChronoDuration::weeks(1);
+                    }
+                    RelativeSpecifier::This => {
+                        // No modification necessary
+                    }
+                }
+
+                while today.weekday() != day {
+                    today += ChronoDuration::days(1);
+                }
+
+                today
+            }
+            Self::WeekdayRelative(day, relspec, unit) => {
+                if !matches!(unit, Unit::Week) {
+                    return Err(crate::Error::ParseError);
+                }
+                let day = day.to_chrono();
+                let mut today = now.date_naive();
+
+                match relspec {
                     RelativeSpecifier::Next => {
                         today += ChronoDuration::weeks(1);
                     }
