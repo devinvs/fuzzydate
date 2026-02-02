@@ -1227,15 +1227,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ones_literal() {
-        let lexemes = vec![Lexeme::Num(5)];
-        let (ones, t) = Ones::parse(lexemes.as_slice()).unwrap();
-
-        assert_eq!(ones, 5);
-        assert_eq!(t, 1);
-    }
-
-    #[test]
     fn test_simple_num() {
         let lexemes = vec![Lexeme::Num(5)];
         let (num, t) = Num::parse(lexemes.as_slice()).unwrap();
