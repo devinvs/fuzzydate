@@ -152,7 +152,9 @@ impl DateTime {
 #[derive(Debug, Eq, PartialEq)]
 /// A Parsed Date
 pub enum Date {
+    YearMonthNumDay(u32, u32, u32),
     MonthNumDayYear(u32, u32, u32),
+    DayMonthYear(u32, Month, u32),
     MonthDayYear(Month, u32, u32),
     MonthNumDay(u32, u32),
     MonthDay(Month, u32),
@@ -189,21 +191,32 @@ impl Date {
         }
 
         tokens = 0;
+        if let Some((day, t)) = Num::parse(&l[tokens..]) {
+            tokens += t;
+            if let Some((month, t)) = Month::parse(&l[tokens..]) {
+                tokens += t;
+                if let Some((year, t)) = Num::parse(&l[tokens..]) {
+                    tokens += t;
+                    return Some((Self::DayMonthYear(day, month, year), tokens));
+                }
+            }
+        }
+
+        tokens = 0;
         if let Some((month, t)) = Month::parse(&l[tokens..]) {
             tokens += t;
 
-            let (day, t) = Num::parse(&l[tokens..])?;
+            let (num, t) = Num::parse(&l[tokens..])?;
             tokens += t;
 
             if let Some((year, t)) = Num::parse(&l[tokens..]) {
                 tokens += t;
-                return Some((Self::MonthDayYear(month, day, year), tokens));
+                return Some((Self::MonthDayYear(month, num, year), tokens));
             }
 
-            return Some((Self::MonthDay(month, day), tokens));
+            return Some((Self::MonthDay(month, num), tokens));
         }
 
-        // TODO: year month day
         tokens = 0;
         if let Some((num1, t)) = Num::parse(&l[tokens..]) {
             tokens += t;
@@ -220,6 +233,10 @@ impl Date {
 
                             let (num3, t) = Num::parse(&l[tokens..])?;
                             tokens += t;
+
+                            if num1 > 1000 {
+                                return Some((Self::YearMonthNumDay(num1, num2, num3), tokens));
+                            }
 
                             // If delim is dot use DMY, otherwise MDY
                             if delim == &Lexeme::Dot {
@@ -313,7 +330,7 @@ impl Date {
                 .ok_or(crate::Error::InvalidDate(format!(
                 "Invalid month-day: {month}-{day}"
             )))?,
-            Self::MonthNumDayYear(month, day, year) => {
+            Self::MonthNumDayYear(month, day, year) | Self::YearMonthNumDay(year, month, day) => {
                 let curr = today.year() as u32;
                 let year = if *year < 100 {
                     if curr + 10 < 2000 + *year {
@@ -337,7 +354,7 @@ impl Date {
                     crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
                 )?
             }
-            Self::MonthDayYear(month, day, year) => {
+            Self::MonthDayYear(month, day, year) | Self::DayMonthYear(day, month, year) => {
                 ChronoDate::from_ymd_opt(*year as i32, *month as u32, *day).ok_or(
                     crate::Error::InvalidDate(format!(
                         "Invalid year-month-day: {}-{}-{}",
@@ -1366,6 +1383,57 @@ mod tests {
     }
 
     #[test]
+    fn test_month_day() {
+        let l = vec![Lexeme::February, Lexeme::Num(5)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 2);
+        assert_eq!(date.year(), now.year());
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test]
+    fn test_month_day_year() {
+        let l = vec![Lexeme::February, Lexeme::Num(5), Lexeme::Num(2024)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 3);
+        assert_eq!(date.year(), 2024);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 5);
+    }
+
+    #[test]
+    fn test_day_month_year() {
+        let l = vec![Lexeme::Num(17), Lexeme::February, Lexeme::Num(2027)];
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 30, 7, 15, 17)
+            .single()
+            .expect("literal date for test case");
+
+        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 3);
+        assert_eq!(date.year(), 2027);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 17);
+    }
+
+    #[test]
     fn test_month_after() {
         let l = vec![
             Lexeme::A,
@@ -1846,6 +1914,66 @@ mod tests {
         assert_eq!(date.year(), 2023);
         assert_eq!(date.month(), 12);
         assert_eq!(date.day(), 19);
+    }
+
+    #[test]
+    fn test_slash_separated_date_year_first() {
+        let lexemes = vec![
+            Lexeme::Num(2023),
+            Lexeme::Slash,
+            Lexeme::Num(5),
+            Lexeme::Slash,
+            Lexeme::Num(12),
+        ];
+
+        let now = Local::now();
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
+    }
+
+    #[test]
+    fn test_dash_separated_date_year_first() {
+        let lexemes = vec![
+            Lexeme::Num(2023),
+            Lexeme::Dash,
+            Lexeme::Num(5),
+            Lexeme::Dash,
+            Lexeme::Num(12),
+        ];
+
+        let now = Local::now();
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
+    }
+
+    #[test]
+    fn test_dot_separated_date_year_first() {
+        let lexemes = vec![
+            Lexeme::Num(2023),
+            Lexeme::Dot,
+            Lexeme::Num(5),
+            Lexeme::Dot,
+            Lexeme::Num(12),
+        ];
+
+        let now = Local::now();
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2023);
+        assert_eq!(date.month(), 5);
+        assert_eq!(date.day(), 12);
     }
 
     #[test]
