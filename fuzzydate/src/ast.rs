@@ -158,7 +158,6 @@ pub enum Date {
     MonthDayYear(Month, u32, u32),
     MonthNumDay(u32, u32),
     MonthDay(Month, u32),
-    MonthYear(Month, u32),
     Today,
     Tomorrow,
     Yesterday,
@@ -215,9 +214,6 @@ impl Date {
                 return Some((Self::MonthDayYear(month, num, year), tokens));
             }
 
-            if num > 1000 {
-                return Some((Self::MonthYear(month, num), tokens));
-            }
             return Some((Self::MonthDay(month, num), tokens));
         }
 
@@ -356,12 +352,6 @@ impl Date {
                 let month = *month as u32;
                 ChronoDate::from_ymd_opt(today.year(), month, *day).ok_or(
                     crate::Error::InvalidDate(format!("Invalid month-day: {month}-{day}")),
-                )?
-            }
-            Self::MonthYear(month, year) => {
-                let month = *month as u32;
-                ChronoDate::from_ymd_opt(*year as i32, month, today.day()).ok_or(
-                    crate::Error::InvalidDate(format!("Invalid month-year: {month}-{year}")),
                 )?
             }
             Self::MonthDayYear(month, day, year) | Self::DayMonthYear(day, month, year) => {
