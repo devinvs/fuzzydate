@@ -365,21 +365,38 @@ impl Date {
             Self::Relative(spec, day) => {
                 let day = day.to_chrono();
                 let mut today = now.date_naive();
+                let this_week = today.iso_week();
 
                 match spec {
+                    // iterate to the beginning or end of the correct week, then iterate through
+                    // the week to the correct day
                     RelativeSpecifier::Next => {
-                        today += ChronoDuration::weeks(1);
+                        while today.iso_week() == this_week {
+                            today += ChronoDuration::days(1);
+                        }
+
+                        while today.weekday() != day {
+                            today += ChronoDuration::days(1);
+                        }
                     }
                     RelativeSpecifier::Last => {
-                        today -= ChronoDuration::weeks(1);
+                        while today.iso_week() == this_week {
+                            today -= ChronoDuration::days(1);
+                        }
+                        while today.weekday() != day {
+                            today -= ChronoDuration::days(1);
+                        }
                     }
                     RelativeSpecifier::This => {
-                        // No modification necessary
-                    }
-                }
+                        while today.iso_week() == this_week {
+                            today -= ChronoDuration::days(1);
+                        }
+                        today += ChronoDuration::days(1);
 
-                while today.weekday() != day {
-                    today += ChronoDuration::days(1);
+                        while today.weekday() != day {
+                            today += ChronoDuration::days(1);
+                        }
+                    }
                 }
 
                 today
@@ -1482,6 +1499,126 @@ mod tests {
         assert_eq!(date.month(), 2);
         // 2024 is a leap year
         assert_eq!(date.day(), 28);
+    }
+
+    #[test]
+    fn test_next_weekday_from_week_start() {
+        let l = vec![Lexeme::Next, Lexeme::Monday];
+
+        // 12 Apr 2021 is a Monday
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 12, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let (date, _) = DateTime::parse(l.as_slice()).unwrap();
+
+        let expected = Local
+            .with_ymd_and_hms(2021, 4, 19, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(date, expected);
+    }
+
+    #[test]
+    fn test_next_weekday_from_week_end() {
+        let l = vec![Lexeme::Next, Lexeme::Monday];
+
+        // 18 Apr 2021 is a Sunday
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 18, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let (date, _) = DateTime::parse(l.as_slice()).unwrap();
+
+        let expected = Local
+            .with_ymd_and_hms(2021, 4, 19, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(date, expected);
+    }
+
+    #[test]
+    fn test_last_weekday_from_week_start() {
+        let l = vec![Lexeme::Last, Lexeme::Monday];
+
+        // 12 Apr 2021 is a Monday
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 12, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let (date, _) = DateTime::parse(l.as_slice()).unwrap();
+
+        let expected = Local
+            .with_ymd_and_hms(2021, 4, 5, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(date, expected);
+    }
+
+    #[test]
+    fn test_last_weekday_from_week_end() {
+        let l = vec![Lexeme::Last, Lexeme::Monday];
+
+        // 18 Apr 2021 is a Sunday
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 18, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let (date, _) = DateTime::parse(l.as_slice()).unwrap();
+
+        let expected = Local
+            .with_ymd_and_hms(2021, 4, 5, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(date, expected);
+    }
+
+    #[test]
+    fn test_this_weekday_from_week_start() {
+        let l = vec![Lexeme::This, Lexeme::Monday];
+
+        // 12 Apr 2021 is a Monday
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 12, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let (date, _) = DateTime::parse(l.as_slice()).unwrap();
+
+        let expected = Local
+            .with_ymd_and_hms(2021, 4, 12, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(date, expected);
+    }
+
+    #[test]
+    fn test_this_weekday_from_week_end() {
+        let l = vec![Lexeme::This, Lexeme::Monday];
+
+        // 18 Apr 2021 is a Sunday
+        let now = Local
+            .with_ymd_and_hms(2021, 4, 18, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let (date, _) = DateTime::parse(l.as_slice()).unwrap();
+
+        let expected = Local
+            .with_ymd_and_hms(2021, 4, 12, 7, 15, 17)
+            .single()
+            .expect("literal datetime for test case");
+        let date = date.to_chrono(now).unwrap();
+
+        assert_eq!(date, expected);
     }
 
     #[test]
