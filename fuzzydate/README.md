@@ -21,7 +21,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fuzzydate = "0.3"
+fuzzydate = "0.4"
 ```
 
 ## Examples
