@@ -19,7 +19,7 @@ Put this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fuzzydate = "0.3"
+fuzzydate = "0.4"
 ```
 
 See the [fuzzydate crate README](fuzzydate/README.md) for more information.
