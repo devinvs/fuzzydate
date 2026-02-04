@@ -10,9 +10,9 @@ use crate::lexer::Lexeme;
 /// Root of the Abstract Syntax Tree, represents a fully parsed DateTime
 pub enum DateTime {
     /// Standard date and time
-    DateTime(Date, Time),
+    DateTime(DateExpr, Time),
     /// Time before date
-    TimeDate(Time, Date),
+    TimeDate(Time, DateExpr),
     /// Duration after a datetime
     After(Duration, Box<DateTime>),
     /// Duration before a datetime
@@ -31,7 +31,7 @@ impl DateTime {
             return Some((Self::Now, tokens));
         }
 
-        if let Some((date_expr, t)) = Date::parse(&l[tokens..]) {
+        if let Some((date_expr, t)) = DateExpr::parse(&l[tokens..]) {
             tokens += t;
 
             if l.get(tokens) == Some(&Lexeme::Comma) || l.get(tokens) == Some(&Lexeme::At) {
@@ -306,6 +306,8 @@ impl DateExpr {
                 let parsed_date = match date {
                     Date::MonthNumDayYear(_, _, _)
                     | Date::MonthDayYear(_, _, _)
+                    | Date::YearMonthNumDay(_, _, _)
+                    | Date::DayMonthYear(_, _, _)
                     | Date::Today
                     | Date::Tomorrow
                     | Date::Yesterday => {
@@ -410,23 +412,41 @@ impl DateExpr {
                 if !matches!(unit, Unit::Week) {
                     return Err(crate::Error::ParseError);
                 }
+
                 let day = day.to_chrono();
                 let mut today = now.date_naive();
+                let this_week = today.iso_week();
 
                 match relspec {
+                    // iterate to the beginning or end of the correct week, then iterate through
+                    // the week to the correct day
                     RelativeSpecifier::Next => {
-                        today += ChronoDuration::weeks(1);
+                        while today.iso_week() == this_week {
+                            today += ChronoDuration::days(1);
+                        }
+
+                        while today.weekday() != day {
+                            today += ChronoDuration::days(1);
+                        }
                     }
                     RelativeSpecifier::Last => {
-                        today -= ChronoDuration::weeks(1);
+                        while today.iso_week() == this_week {
+                            today -= ChronoDuration::days(1);
+                        }
+                        while today.weekday() != day {
+                            today -= ChronoDuration::days(1);
+                        }
                     }
                     RelativeSpecifier::This => {
-                        // No modification necessary
-                    }
-                }
+                        while today.iso_week() == this_week {
+                            today -= ChronoDuration::days(1);
+                        }
+                        today += ChronoDuration::days(1);
 
-                while today.weekday() != day {
-                    today += ChronoDuration::days(1);
+                        while today.weekday() != day {
+                            today += ChronoDuration::days(1);
+                        }
+                    }
                 }
 
                 today
