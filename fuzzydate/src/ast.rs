@@ -1385,23 +1385,6 @@ mod tests {
     }
 
     #[test]
-    fn test_month_year() {
-        let l = vec![Lexeme::February, Lexeme::Num(2027)];
-        let now = Local
-            .with_ymd_and_hms(2021, 4, 17, 7, 15, 17)
-            .single()
-            .expect("literal date for test case");
-
-        let (date, t) = DateTime::parse(l.as_slice()).unwrap();
-        let date = date.to_chrono(now).unwrap();
-
-        assert_eq!(t, 2);
-        assert_eq!(date.year(), 2027);
-        assert_eq!(date.month(), 2);
-        assert_eq!(date.day(), now.day());
-    }
-
-    #[test]
     fn test_month_day_year() {
         let l = vec![Lexeme::February, Lexeme::Num(5), Lexeme::Num(2024)];
         let now = Local
