@@ -29,37 +29,40 @@
 //!
 //! ## Grammar
 //! ```text
+//! ; TODO: in <num> <duration>
 //! <datetime> ::= <time>
-//!              | <time> , <date>
-//!              | <time> <date>
-//!              | <time> on <date>
-//!              | <date>
-//!              | <date> <time>
-//!              | <date> , <time>
-//!              | <date> at <time>
+//!              | <time> , <date_expr>
+//!              | <time> <date_expr>
+//!              | <date_expr>
+//!              | <date_expr> <time>
+//!              | <date_expr> , <time>
+//!              | <date_expr> at <time>
 //!              | <duration> after <datetime>
 //!              | <duration> from <datetime>
 //!              | <duration> before <datetime>
 //!              | <duration> ago
 //!              | now
 //!
-//! <date> ::= today
-//!               | tomorrow
-//!               | yesterday
-//!               | <num> / <num> / <num>  ; if the first value is > 1000, format of triples is (year, month, day)
-//!               | <num> - <num> - <num>  ; M[M] - D[D] - Y[Y][YY]
-//!               | <num> . <num> . <num>  ; D[D] . M[M] . Y[Y][YY]
-//!               | <month> <num> <num>
-//!               | <num> <month> <num>
-//!               | <month> <num>
-//!               | <num> <month>
-//!               | <duration> ago         ; duration must be for a whole number of days
+//! <date_expr> ::= <date>
+//!               | <date> <relative_specifier> <unit>
+//!               | <duration> ago              ; duration must be for a whole number of days
 //!               | <duration> after <date>
 //!               | <duration> from <date>
 //!               | <duration> before <date>
 //!               | <relative_specifier> <weekday>
 //!               | <relative_specifier> <unit>
 //!               | <weekday>
+//!
+//! <date> ::= today
+//!          | tomorrow
+//!          | yesterday
+//!          | <num> / <num> / <num>  ; if the first value is > 1000, format of triples is (year, month, day)
+//!          | <num> - <num> - <num>  ; M[M] - D[D] - Y[Y][YY]
+//!          | <num> . <num> . <num>  ; D[D] . M[M] . Y[Y][YY]
+//!          | <month> <num> <num>
+//!          | <num> <month> <num>
+//!          | <month> <num>
+//!          | <num> <month>
 //!
 //! <time> ::= <num>
 //!          | <num>:<num>
@@ -73,14 +76,13 @@
 //!          | midnight
 //!          | noon
 //!
-//! <duration> ::= <num> <unit>
+//! <duration> ::= <num> <uni>
 //!              | <article> <unit>
 //!              | <duration> and <duration>
 //!
 //! <article> ::= a
-//!            | an
-//!            | the
-//!
+//!             | an
+//!             | the
 //!
 //! <relative_specifier> ::= this
 //!                        | next
