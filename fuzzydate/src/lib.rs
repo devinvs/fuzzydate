@@ -56,10 +56,13 @@
 //! <date> ::= today
 //!          | tomorrow
 //!          | yesterday
-//!          | <num> / <num> / <num>
-//!          | <num> - <num> - <num>
-//!          | <num> . <num> . <num>
+//!          | <num> / <num> / <num>  ; if the first value is > 1000, format of triples is (year, month, day)
+//!          | <num> - <num> - <num>  ; M[M] - D[D] - Y[Y][YY]
+//!          | <num> . <num> . <num>  ; D[D] . M[M] . Y[Y][YY]
 //!          | <month> <num> <num>
+//!          | <num> <month> <num>
+//!          | <month> <num>
+//!          | <num> <month>
 //!
 //! <time> ::= <num>
 //!          | <num>:<num>
