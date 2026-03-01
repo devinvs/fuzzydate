@@ -771,12 +771,14 @@ impl Time {
             Time::HourMin(hour, min) => ChronoTime::from_hms_opt(hour, min, 0).ok_or(
                 crate::Error::InvalidDate(format!("Invalid time: {hour}:{min}")),
             ),
-            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour, min, 0).ok_or(
+            Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour % 12, min, 0).ok_or(
                 crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} am")),
             ),
-            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour + 12, min, 0).ok_or(
-                crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} pm")),
-            ),
+            Time::HourMinPM(hour, min) => {
+                ChronoTime::from_hms_opt(hour % 12 + 12, min, 0).ok_or(
+                    crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} pm")),
+                )
+            }
         }
     }
 }
@@ -1371,6 +1373,98 @@ mod tests {
         assert_eq!(date.day(), 16);
         assert_eq!(date.hour(), 0);
         assert_eq!(date.minute(), 0);
+    }
+
+    #[test]
+    fn test_12pm_is_noon() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Num(12),
+            Lexeme::PM,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now()).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 12);
+        assert_eq!(date.minute(), 0);
+    }
+
+    #[test]
+    fn test_12_30pm_is_half_past_noon() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Num(12),
+            Lexeme::Colon,
+            Lexeme::Num(30),
+            Lexeme::PM,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now()).unwrap();
+
+        assert_eq!(t, 7);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 12);
+        assert_eq!(date.minute(), 30);
+    }
+
+    #[test]
+    fn test_12am_is_midnight() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Num(12),
+            Lexeme::AM,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now()).unwrap();
+
+        assert_eq!(t, 5);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 0);
+        assert_eq!(date.minute(), 0);
+    }
+
+    #[test]
+    fn test_12_30am_is_half_past_midnight() {
+        use chrono::Timelike;
+
+        let lexemes = vec![
+            Lexeme::February,
+            Lexeme::Num(16),
+            Lexeme::Num(2022),
+            Lexeme::Num(12),
+            Lexeme::Colon,
+            Lexeme::Num(30),
+            Lexeme::AM,
+        ];
+        let (date, t) = DateTime::parse(lexemes.as_slice()).unwrap();
+        let date = date.to_chrono(Local::now()).unwrap();
+
+        assert_eq!(t, 7);
+        assert_eq!(date.year(), 2022);
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 16);
+        assert_eq!(date.hour(), 0);
+        assert_eq!(date.minute(), 30);
     }
 
     #[test]
