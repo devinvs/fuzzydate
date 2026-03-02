@@ -774,11 +774,9 @@ impl Time {
             Time::HourMinAM(hour, min) => ChronoTime::from_hms_opt(hour % 12, min, 0).ok_or(
                 crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} am")),
             ),
-            Time::HourMinPM(hour, min) => {
-                ChronoTime::from_hms_opt(hour % 12 + 12, min, 0).ok_or(
-                    crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} pm")),
-                )
-            }
+            Time::HourMinPM(hour, min) => ChronoTime::from_hms_opt(hour % 12 + 12, min, 0).ok_or(
+                crate::Error::InvalidDate(format!("Invalid time: {hour}:{min} pm")),
+            ),
         }
     }
 }
