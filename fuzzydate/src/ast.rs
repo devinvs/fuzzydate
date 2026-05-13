@@ -308,9 +308,7 @@ impl DateExpr {
                     | Date::MonthDayYear(_, _, _)
                     | Date::YearMonthNumDay(_, _, _)
                     | Date::DayMonthYear(_, _, _)
-                    | Date::Today
-                    | Date::Tomorrow
-                    | Date::Yesterday => {
+                    | Date::DayOffset(_) => {
                         return Err(crate::Error::ParseError);
                     }
                     Date::MonthNumDay(_, _) => date.to_chrono(now)?,
@@ -476,9 +474,9 @@ pub enum Date {
     MonthDayYear(Month, u32, u32),
     MonthNumDay(u32, u32),
     MonthDay(Month, u32),
-    Today,
-    Tomorrow,
-    Yesterday,
+    /// Whole calendar days from the anchor date (from `Lexeme::DayOffset`; parser accepts only
+    /// offsets within `DAY_OFFSET_SANITY_MIN`..=`DAY_OFFSET_SANITY_MAX` on the crate root).
+    DayOffset(i32),
     Empty,
 }
 
@@ -486,21 +484,12 @@ impl Date {
     fn parse(l: &[Lexeme]) -> Option<(Self, usize)> {
         let mut tokens = 0;
 
-        if let Some(&Lexeme::Today) = l.get(tokens) {
+        if let Some(&Lexeme::DayOffset(days)) = l.get(tokens) {
+            if !crate::day_offset_in_sanity_range(days) {
+                return None;
+            }
             tokens += 1;
-            return Some((Self::Today, tokens));
-        }
-
-        tokens = 0;
-        if let Some(&Lexeme::Tomorrow) = l.get(tokens) {
-            tokens += 1;
-            return Some((Self::Tomorrow, tokens));
-        }
-
-        tokens = 0;
-        if let Some(&Lexeme::Yesterday) = l.get(tokens) {
-            tokens += 1;
-            return Some((Self::Yesterday, tokens));
+            return Some((Self::DayOffset(days), tokens));
         }
 
         tokens = 0;
@@ -576,9 +565,7 @@ impl Date {
     fn to_chrono<Tz: TimeZone>(&self, now: ChronoDateTime<Tz>) -> Result<ChronoDate, crate::Error> {
         let today = now.date_naive();
         Ok(match self {
-            Self::Today => today,
-            Self::Yesterday => today - ChronoDuration::days(1),
-            Self::Tomorrow => today + ChronoDuration::days(1),
+            Self::DayOffset(days) => today + ChronoDuration::days(i64::from(*days)),
             Self::MonthNumDay(month, day) => ChronoDate::from_ymd_opt(today.year(), *month, *day)
                 .ok_or(crate::Error::InvalidDate(format!(
                 "Invalid month-day: {month}-{day}"
@@ -1501,7 +1488,7 @@ mod tests {
             Lexeme::The,
             Lexeme::Day,
             Lexeme::After,
-            Lexeme::Tomorrow,
+            Lexeme::DayOffset(1),
             Lexeme::Comma,
             Lexeme::Num(5),
             Lexeme::Colon,
@@ -1595,7 +1582,8 @@ mod tests {
             .single()
             .expect("literal date for test case");
         let (parsed, t) =
-            DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::Today]).unwrap();
+            DateTime::parse(&[Lexeme::A, Lexeme::Day, Lexeme::Before, Lexeme::DayOffset(0)])
+                .unwrap();
         let result = parsed.to_chrono(now).unwrap();
 
         let today = now.date_naive();
@@ -1603,6 +1591,28 @@ mod tests {
         assert_eq!(result.year(), today.year());
         assert_eq!(result.month(), today.month());
         assert_eq!(result.day(), today.day() - 1);
+    }
+
+    #[test]
+    fn test_date_parse_day_offset_lexemes() {
+        assert_eq!(
+            Some((Date::DayOffset(-1), 1)),
+            Date::parse(&[Lexeme::DayOffset(-1)])
+        );
+        assert_eq!(
+            Some((Date::DayOffset(0), 1)),
+            Date::parse(&[Lexeme::DayOffset(0)])
+        );
+        assert_eq!(
+            Some((Date::DayOffset(1), 1)),
+            Date::parse(&[Lexeme::DayOffset(1)])
+        );
+        assert_eq!(
+            Some((Date::DayOffset(2), 1)),
+            Date::parse(&[Lexeme::DayOffset(2)])
+        );
+        assert!(Date::parse(&[Lexeme::DayOffset(crate::DAY_OFFSET_SANITY_MAX + 1)]).is_none());
+        assert!(Date::parse(&[Lexeme::DayOffset(crate::DAY_OFFSET_SANITY_MIN - 1)]).is_none());
     }
 
     #[test]
@@ -2378,7 +2388,7 @@ mod tests {
             Lexeme::Num(3),
             Lexeme::Minute,
             Lexeme::After,
-            Lexeme::Yesterday,
+            Lexeme::DayOffset(-1),
         ];
         // Duration with sub-daily unit should not be parsed as a Date expression
         // so Date::parse should return None.
@@ -2391,7 +2401,7 @@ mod tests {
             Lexeme::Num(3),
             Lexeme::Minute,
             Lexeme::Before,
-            Lexeme::Yesterday,
+            Lexeme::DayOffset(-1),
         ];
         // Duration with sub-daily unit should not be parsed as a Date expression
         // so Date::parse should return None.
